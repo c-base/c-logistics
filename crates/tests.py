@@ -9,6 +9,8 @@ from .labels import FONTS, public_url, render_label
 from .models import Crate, Item, format_code
 
 
+# Unabhängig von einer lokalen .env.
+@override_settings(PUBLIC_BASE_URL='', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696)
 class CrateTests(TestCase):
     @classmethod
     def setUpTestData(cls):

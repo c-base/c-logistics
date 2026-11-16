@@ -84,12 +84,23 @@ Bootstrap-5-Fassung (Bootswatch Cyborg 5.3.8 plus `bootstrap.custom.css`).
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+cp .env.example .env          # Einstellungen, siehe unten
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py createsuperuser
 .venv/bin/python manage.py runserver
 ```
 
 Tests: `.venv/bin/python manage.py test`
+
+## Einstellungen (.env)
+
+Alle Einstellungen kommen aus Umgebungsvariablen. Für die lokale Arbeit stehen
+sie in der Datei `.env` im Projektordner; `.env.example` ist die kommentierte
+Vorlage. Die `.env` wird nicht committet, weil sie Geheimnisse enthält
+(`DJANGO_SECRET_KEY`, `OIDC_CLIENT_SECRET`).
+
+- Echte Umgebungsvariablen haben Vorrang vor der Datei.
+- Nach Änderungen an der `.env` den Server neu starten.
 
 ## Offene Punkte
 

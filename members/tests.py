@@ -48,6 +48,8 @@ class SyncMemberTests(TestCase):
         self.assertEqual(member.username, 'x')
 
 
+# Unabhängig von einer lokalen .env: ohne Provider und ohne feste Adresse starten.
+@override_settings(OIDC_ISSUER_URL='', OIDC_CLIENT_ID='', OIDC_PROVIDER_NAME='c-base-account', PUBLIC_BASE_URL='')
 class LoginFlowTests(TestCase):
     def test_password_form_without_oidc(self):
         response = self.client.get(reverse('login'))
