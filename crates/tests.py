@@ -168,4 +168,12 @@ class CrateTests(TestCase):
         url = reverse('crates:label', args=[self.crate.code])
         default = self.client.get(url).content
         self.assertNotEqual(default, self.client.get(url, {'font': 'anybody'}).content)
+        self.assertNotEqual(default, self.client.get(url, {'font': 'orbitron'}).content)
         self.assertEqual(default, self.client.get(url, {'font': 'gibtsnicht'}).content)
+
+    def test_default_label_sets_the_number_in_orbitron(self):
+        from .labels import _Typeface
+        face = _Typeface('baijamjuree')
+        self.assertEqual(face.spec['file'], 'BaiJamjuree-Bold.ttf')
+        self.assertEqual(face.code_face.spec['file'], 'Orbitron.ttf')
+        self.assertIs(_Typeface('orbitron').code_face.spec, _Typeface('orbitron').spec)

@@ -7,9 +7,6 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
 - [ ] **Endgültige Adresse festlegen** und als `PUBLIC_BASE_URL` setzen. Sie steht
       in jedem QR-Code und NFC-Tag und lässt sich danach nicht mehr ändern, ohne
       alle Labels neu zu drucken.
-- [ ] **Label-Schrift entscheiden**: `orbitron` (Standard), `anybody` oder
-      `baijamjuree` – oder Mischung (Schriftzug in Bai Jamjuree, Nummer in
-      Orbitron, weil Bai Jamjuree 0 und O kaum unterscheidet).
 - [ ] **Testdruck auf dem Brother QL-700** (62 mm endlos): passende `PageSize`
       der CUPS-Warteschlange finden (`62X1` … `62X4`), Schnitt prüfen, QR-Code
       aus üblichem Abstand mit Android scannen.
@@ -47,8 +44,9 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
 
 ## P3 – Aufräumen
 
-- [ ] Nicht gewählte Label-Schriften aus `crates/fonts/` und `FONTS` entfernen;
-      `XScale.ttf` ist bereits unbenutzt.
+- [ ] Nicht gewählte Label-Schriften aus `crates/fonts/` und `FONTS` entfernen
+      (Anybody; Standard ist Bai Jamjuree mit Orbitron-Nummer); `XScale.ttf` ist
+      bereits unbenutzt.
 - [ ] `LABEL_WIDTH_PX` für andere Rollenbreiten testen (29 mm).
 - [ ] Oberfläche nur deutsch – Englisch / Übersetzungen bei Bedarf.
 

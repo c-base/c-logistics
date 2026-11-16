@@ -23,9 +23,11 @@ MIDDLE_LINE = 'crate'
 HEX_DIGITS = '0123456789ABCDEF'
 
 # `axes` stellt variable Schriften ein, `features` schaltet OpenType-Varianten zu
-# (bei Anybody die Null mit Querbalken).
+# (bei Anybody die Null mit Querbalken). `code_font` setzt die ID in einer
+# anderen Schrift: Bai Jamjuree unterscheidet 0 und O kaum, Orbitron streicht
+# die Null durch.
 FONTS = {
-    'baijamjuree': {'file': 'BaiJamjuree-Bold.ttf', 'axes': {}, 'features': []},
+    'baijamjuree': {'file': 'BaiJamjuree-Bold.ttf', 'axes': {}, 'features': [], 'code_font': 'orbitron'},
     'orbitron': {'file': 'Orbitron.ttf', 'axes': {'Weight': 900}, 'features': []},
     'anybody': {'file': 'Anybody.ttf', 'axes': {'Width': 150, 'Weight': 800}, 'features': ['zero']},
 }
@@ -45,6 +47,8 @@ class _Typeface:
         # OpenType-Features gibt es nur mit der Raqm-Textausgabe.
         self.features = self.spec['features'] or None
         self.engine = ImageFont.Layout.RAQM if self.features else ImageFont.Layout.BASIC
+        code_font = self.spec.get('code_font')
+        self.code_face = _Typeface(code_font) if code_font else self
 
     def font(self, size):
         font = ImageFont.truetype(str(FONT_DIR / self.spec['file']), max(1.0, size), layout_engine=self.engine)
@@ -65,7 +69,7 @@ class _Typeface:
         return -top, max(0, bottom)
 
     def text_block(self, block_width, code):
-        """Die drei Zeilen als (Text, Schrift, Grundlinie) und die Gesamthöhe des Blocks.
+        """Die drei Zeilen als (Text, Schrift, Grundlinie, Features) und die Gesamthöhe des Blocks.
 
         Oben klein „c-base cargo“, darunter „crate“, darunter die ID – jede Zeile
         füllt die Blockbreite, kürzere Zeilen werden dadurch größer. Die ID richtet
@@ -74,18 +78,22 @@ class _Typeface:
         probe = self.font(1000)
         top_font = self.font(1000 * block_width / self.width(probe, TOP_LINE))
         middle_font = self.font(1000 * block_width / self.width(probe, MIDDLE_LINE))
-        code_font = self.font(1000 * block_width / max(self.width(probe, digit * 4) for digit in HEX_DIGITS))
+        code_face = self.code_face
+        code_probe = code_face.font(1000)
+        code_font = code_face.font(
+            1000 * block_width / max(code_face.width(code_probe, digit * 4) for digit in HEX_DIGITS)
+        )
 
         top_up, top_down = self.ink(top_font, TOP_LINE)
         middle_up, middle_down = self.ink(middle_font, MIDDLE_LINE)
-        code_up, _ = self.ink(code_font, '0')
+        code_up, _ = code_face.ink(code_font, '0')
         top_baseline = top_up
         middle_baseline = top_baseline + top_down + 0.45 * top_up + middle_up
         code_baseline = middle_baseline + middle_down + 0.25 * middle_up + code_up
         lines = [
-            (TOP_LINE, top_font, top_baseline),
-            (MIDDLE_LINE, middle_font, middle_baseline),
-            (code, code_font, code_baseline),
+            (TOP_LINE, top_font, top_baseline, self.features),
+            (MIDDLE_LINE, middle_font, middle_baseline, self.features),
+            (code, code_font, code_baseline, code_face.features),
         ]
         return lines, code_baseline
 
@@ -127,8 +135,8 @@ def render_label(url, code, tape_px=None, font=None):
             if dark:
                 x0, y0 = left + x * module_px, edge + y * module_px
                 draw.rectangle([x0, y0, x0 + module_px - 1, y0 + module_px - 1], fill=0)
-    for text, line_font, baseline in lines:
-        draw.text((text_left, edge + baseline), text, font=line_font, fill=0, anchor='ls', features=typeface.features)
+    for text, line_font, baseline, features in lines:
+        draw.text((text_left, edge + baseline), text, font=line_font, fill=0, anchor='ls', features=features)
     return image
 
 

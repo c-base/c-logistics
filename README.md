@@ -23,10 +23,12 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   jeweils die volle Breite füllen: klein „c-base cargo“, groß „crate“, groß
   die ID. Alles andere ändert sich zu oft; ein Label soll nie neu gedruckt
   werden müssen.
-- Schrift: wählbar über `LABEL_FONT` – `orbitron` (Standard), `anybody` oder
-  `baijamjuree`. Zum Vergleichen geht auch `?font=…` an der Label-URL. Alle
-  drei liegen mit ihrer SIL Open Font License in `crates/fonts/`. Bei Orbitron
-  und Anybody ist die Null markiert, bei Bai Jamjuree nicht.
+- Schrift: Der Schriftzug steht in Bai Jamjuree Bold, die ID in Orbitron
+  Black, weil Orbitron die Null durchstreicht und sie so nicht mit einem O
+  verwechselt wird. Über `LABEL_FONT` lässt sich alles auf `orbitron` oder
+  `anybody` umstellen (Standard: `baijamjuree`); zum Vergleichen geht auch
+  `?font=…` an der Label-URL. Alle drei Schriften liegen mit ihrer SIL Open
+  Font License in `crates/fonts/`.
 - Die App liefert das Label in Druckauflösung (300 dpi) als PNG unter
   `/c/<ID>/label.png` und als einseitiges PDF unter `/c/<ID>/label.pdf`. Von
   welchem Gerät gedruckt wird, ist bewusst offen.

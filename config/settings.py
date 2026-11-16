@@ -144,5 +144,6 @@ OIDC_CLIENT_SECRET = os.environ.get('OIDC_CLIENT_SECRET', '')
 OIDC_SCOPE = os.environ.get('OIDC_SCOPE', 'openid profile email')
 OIDC_PROVIDER_NAME = os.environ.get('OIDC_PROVIDER_NAME', 'c-base-account')
 
-# Schrift auf dem Label: 'orbitron', 'anybody' oder 'baijamjuree' (siehe crates/labels.py).
-LABEL_FONT = os.environ.get('LABEL_FONT', 'orbitron')
+# Schrift auf dem Label: 'baijamjuree' (Nummer in Orbitron), 'orbitron' oder
+# 'anybody' (siehe crates/labels.py).
+LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')
