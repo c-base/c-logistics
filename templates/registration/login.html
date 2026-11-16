@@ -3,16 +3,16 @@
 {% block content %}
 <div class="login-wrap">
   <div class="login-box">
-    {% if oidc_error %}<p class="errorlist center">Die Anmeldung über {{ oidc_provider_name }} ist fehlgeschlagen. Bitte versuche es erneut.</p>{% endif %}
+    {% if oidc_error %}<div class="alert alert-danger">Die Anmeldung über {{ oidc_provider_name }} ist fehlgeschlagen. Bitte versuche es erneut.</div>{% endif %}
     {% if oidc_enabled %}
-    <a class="button block" href="{% url 'oidc-login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">mit {{ oidc_provider_name }} anmelden</a>
-    <p class="muted center" style="margin:1em 0">oder mit lokalem passwort:</p>
+    <a class="btn btn-primary w-100" href="{% url 'oidc-login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">mit {{ oidc_provider_name }} anmelden</a>
+    <p class="muted text-center my-3">oder mit lokalem passwort:</p>
     {% endif %}
     <form method="post">
       {% csrf_token %}
-      {{ form.as_p }}
+      {{ form }}
       <input type="hidden" name="next" value="{{ next }}">
-      <div class="center"><button>Login</button></div>
+      <div class="text-center"><button class="btn btn-primary">Login</button></div>
     </form>
   </div>
 </div>

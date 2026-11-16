@@ -147,3 +147,6 @@ OIDC_PROVIDER_NAME = os.environ.get('OIDC_PROVIDER_NAME', 'c-base-account')
 # Schrift auf dem Label: 'baijamjuree' (Nummer in Orbitron), 'orbitron' oder
 # 'anybody' (siehe crates/labels.py).
 LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')
+
+# Projektweite statische Dateien: das c-base-Theme unter static/c-base-bootstrap/
+STATICFILES_DIRS = [BASE_DIR / 'static']

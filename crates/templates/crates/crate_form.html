@@ -2,15 +2,17 @@
 {% block title %}{% if object %}{{ object.name }} bearbeiten{% else %}Neue Crate{% endif %}{% endblock %}
 {% block content %}
 <h1>{% if object %}{{ object.name }} bearbeiten{% else %}Neue Crate{% endif %}</h1>
-<form method="post" class="card">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <div class="actions">
-    <button>Speichern</button>
-    <a class="button secondary" href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'crates:list' %}{% endif %}">Abbrechen</a>
+<form method="post" class="card transparent">
+  <div class="card-body">
+    {% csrf_token %}
+    {{ form }}
+    <div class="actions">
+      <button class="btn btn-primary">Speichern</button>
+      <a class="btn btn-secondary" href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'crates:list' %}{% endif %}">Abbrechen</a>
+    </div>
   </div>
 </form>
 {% if object %}
-<p><a href="{% url 'crates:delete' object.code %}">Crate löschen …</a></p>
+<p class="mt-3"><a href="{% url 'crates:delete' object.code %}">Crate löschen …</a></p>
 {% endif %}
 {% endblock %}

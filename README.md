@@ -64,9 +64,20 @@ Beim Provider als Redirect-URI eintragen: `<PUBLIC_BASE_URL>/accounts/oidc/callb
 
 ## Optik
 
-Die Oberfläche folgt c-beam: dunkles Bootswatch-„Cyborg“-Farbschema auf dem
-abgedunkelten Stationsbild. Hintergrundbild und Logo unter
-`crates/static/crates/` stammen von c-beam.
+Die Oberfläche nutzt das c-base-Theme
+[c-base-bootstrap](https://github.com/c-base/c-base-bootstrap) in der
+Bootstrap-5-Fassung (Bootswatch Cyborg 5.3.8 plus `bootstrap.custom.css`).
+
+- Die benötigten Theme-Dateien liegen als Kopie unter
+  `static/c-base-bootstrap/` (CSS, Bootstrap-JS, Hintergrundbild). Stand:
+  lokaler Branch `bootstrap5`, Commit `f45bfb0` – noch nicht bei c-base
+  veröffentlicht.
+- `crates/static/crates/app.css` ergänzt nur, was c-logistics eigen ist:
+  Eingabefelder im Stil von `.terminal`, das abgedunkelte Stationsbild als
+  Hintergrund, die Inhaltstabelle und Anpassungen für Smartphones.
+- Formulare bekommen ihr Bootstrap-Markup über `BootstrapFormMixin` und das
+  Template `crates/templates/forms/bootstrap.html`.
+- Das Logo unter `crates/static/crates/logo.png` stammt von c-beam.
 
 ## Entwicklung
 

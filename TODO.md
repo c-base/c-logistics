@@ -23,7 +23,8 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       dem Proxy (`manage.py check --deploy`).
 - [ ] **Datensicherung** für `db.sqlite3` (oder Wechsel auf PostgreSQL).
 - [ ] **Auf echtem Android-Gerät testen** (Chrome): Scan → Login → Crate,
-      Formulare, Navigation. Bisher nur per Screenshot in Handybreite geprüft.
+      Formulare, aufklappbare Navigation. Bisher nur per Screenshot in
+      Handybreite geprüft; das Aufklappen des Menüs ist ungetestet.
 
 ## P2 – fachliche Entscheidungen
 
@@ -39,8 +40,12 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       (altes Label zeigt dann auf die neue Crate). Festen Zähler einbauen?
 - [ ] **`0000` /dev/null**: Löschschutz? Sollen entfernte Inhaltspositionen
       dorthin verschoben statt gelöscht werden?
-- [ ] **Hintergrundbild und Logo** stammen von c-beam
-      (`crates/static/crates/`) – klären, ob sie hier im Repository liegen dürfen.
+- [ ] **Theme veröffentlichen**: Die Bootstrap-5-Fassung von c-base-bootstrap
+      liegt nur lokal (`~/projects/c-base-bootstrap`, Branch `bootstrap5`). Mit
+      c-base abstimmen, pushen bzw. Pull Request stellen und die Kopie unter
+      `static/c-base-bootstrap/` danach durch ein Git-Submodul ersetzen.
+- [ ] **Logo** stammt von c-beam (`crates/static/crates/logo.png`) – klären,
+      ob es hier im Repository liegen darf.
 
 ## P3 – Aufräumen
 

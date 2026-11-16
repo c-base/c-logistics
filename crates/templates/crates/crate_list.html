@@ -1,31 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row">
-  <h1 class="grow">c-base cargo crates</h1>
-  <a class="button" href="{% url 'crates:create' %}">Neue Crate</a>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+  <h1 class="flex-grow-1 m-0">c-base cargo crates</h1>
+  <a class="btn btn-primary" href="{% url 'crates:create' %}">Neue Crate</a>
 </div>
-<form method="get" class="row searchbar">
-  <input class="grow" type="search" name="q" enterkeyhint="search" autocapitalize="none" value="{{ query }}" placeholder="Name, ID oder Inhalt suchen">
-  <label><input type="checkbox" name="mine" value="1" {% if mine %}checked{% endif %}> nur meine</label>
-  <button class="secondary">Suchen</button>
+<form method="get" class="row g-2 align-items-center mb-3">
+  <div class="col-12 col-sm">
+    <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="Name, ID oder Inhalt suchen"
+           enterkeyhint="search" autocapitalize="none" aria-label="Suche">
+  </div>
+  <div class="col-auto">
+    <div class="form-check mb-0">
+      <input class="form-check-input" type="checkbox" name="mine" value="1" id="filter-mine" {% if mine %}checked{% endif %}>
+      <label class="form-check-label" for="filter-mine">nur meine</label>
+    </div>
+  </div>
+  <div class="col-auto ms-auto">
+    <button class="btn btn-secondary">Suchen</button>
+  </div>
 </form>
 {% for crate in object_list %}
-  <a class="card" href="{{ crate.get_absolute_url }}">
-    <div class="row">
-      <span class="code">{{ crate.code }}</span>
-      <strong class="grow">{{ crate.name }}</strong>
-    </div>
-    <div class="muted">
-      {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
-      · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}
-      {% if crate.location %}· {{ crate.location }}{% endif %}
+  <a class="card transparent mb-2" href="{{ crate.get_absolute_url }}">
+    <div class="card-body">
+      <div class="d-flex gap-2">
+        <span class="code">{{ crate.code }}</span>
+        <strong class="text-white">{{ crate.name }}</strong>
+      </div>
+      <div class="muted">
+        {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
+        · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}
+        {% if crate.location %}· {{ crate.location }}{% endif %}
+      </div>
     </div>
   </a>
 {% empty %}
   <p class="muted">Keine Crates gefunden.</p>
 {% endfor %}
 {% if is_paginated %}
-  <p class="row">
+  <p class="d-flex gap-3 align-items-center mt-3">
     {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
     <span class="muted">Seite {{ page_obj.number }} von {{ paginator.num_pages }}</span>
     {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.next_page_number }}">weiter →</a>{% endif %}

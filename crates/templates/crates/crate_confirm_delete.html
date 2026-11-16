@@ -2,12 +2,14 @@
 {% block title %}{{ object.name }} löschen{% endblock %}
 {% block content %}
 <h1>{{ object.name }} löschen?</h1>
-<form method="post" class="card">
-  {% csrf_token %}
-  <p>Die Crate <span class="code">{{ object.code }}</span> und ihre {{ object.items.count }} Inhaltsposition{{ object.items.count|pluralize:"en" }} werden endgültig gelöscht.</p>
-  <div class="actions">
-    <button class="danger">Endgültig löschen</button>
-    <a class="button secondary" href="{{ object.get_absolute_url }}">Abbrechen</a>
+<form method="post" class="card transparent">
+  <div class="card-body">
+    {% csrf_token %}
+    <p>Die Crate <span class="code">{{ object.code }}</span> und ihre {{ object.items.count }} Inhaltsposition{{ object.items.count|pluralize:"en" }} werden endgültig gelöscht.</p>
+    <div class="actions">
+      <button class="btn btn-danger">Endgültig löschen</button>
+      <a class="btn btn-secondary" href="{{ object.get_absolute_url }}">Abbrechen</a>
+    </div>
   </div>
 </form>
 {% endblock %}

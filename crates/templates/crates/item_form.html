@@ -3,12 +3,14 @@
 {% block content %}
 <h1>{% if object %}Position ändern{% else %}Position hinzufügen{% endif %}</h1>
 <p class="muted">in <a href="{{ crate.get_absolute_url }}">{{ crate.name }}</a></p>
-<form method="post" class="card">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <div class="actions">
-    <button>Speichern</button>
-    <a class="button secondary" href="{{ crate.get_absolute_url }}">Abbrechen</a>
+<form method="post" class="card transparent">
+  <div class="card-body">
+    {% csrf_token %}
+    {{ form }}
+    <div class="actions">
+      <button class="btn btn-primary">Speichern</button>
+      <a class="btn btn-secondary" href="{{ crate.get_absolute_url }}">Abbrechen</a>
+    </div>
   </div>
 </form>
 {% endblock %}

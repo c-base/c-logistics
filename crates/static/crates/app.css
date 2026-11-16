@@ -1,0 +1,113 @@
+/* c-logistics: Ergänzungen zum c-base-bootstrap-Theme (Bootstrap 5).
+   Farben, Schrift, Knöpfe, Navigation und Tabellen kommen aus dem Theme. */
+
+body {
+  padding-top: 70px;
+  min-height: 100vh;
+  background-color: #000;
+  -webkit-tap-highlight-color: rgba(42, 159, 214, 0.25);
+}
+
+/* Das abgedunkelte Stationsbild als feste Ebene hinter der Seite.
+   `background-attachment: fixed` ruckelt auf Android bzw. wird ignoriert. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+              url("../c-base-bootstrap/img/bg.jpg") center center / cover no-repeat;
+}
+
+.container { max-width: 960px; }
+
+.navbar-brand { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.navbar button.nav-link { background: none; border: 0; }
+.navbar form { margin: 0; }
+
+.muted { color: #777; }
+.code { font-family: Menlo, Monaco, Consolas, "Courier New", monospace; letter-spacing: 0.05em; color: #33b5e5; }
+code { color: #33b5e5; }
+
+/* Karten: halbtransparent wie .transparent im Theme, mit dünnem Rahmen */
+.card.transparent { border: 1px solid #282828; color: inherit; overflow-wrap: anywhere; }
+a.card.transparent:hover { border-color: #2a9fd6; text-decoration: none; }
+.card dt { color: #777; font-weight: 400; }
+.card dd { color: #fff; }
+.card dd.code { color: #33b5e5; }
+
+/* Überschriften etwas kleiner als im Theme: die Seiten sind Arbeitsmasken, keine Titelseiten */
+h1, .h1 { font-size: 2rem; }
+h2, .h2 { font-size: 1.5rem; margin-top: 1.75rem; }
+
+/* Eingabefelder im Stil von .terminal: schwarz, Monospace, blauer 2-px-Rahmen */
+.form-control,
+.form-select {
+  font-family: "Andale Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  line-height: 1.5em;
+  padding: 10px;
+  border: 2px solid #3ab6e4;
+  border-radius: 0;
+  background-color: #000;
+  color: #33b5e5;
+  caret-color: #33b5e5;
+  color-scheme: dark;
+}
+.form-select {
+  padding-right: 2.25rem;
+  --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2333b5e5' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+.form-control:focus,
+.form-select:focus {
+  background-color: #000;
+  color: #33b5e5;
+  border-color: #fff;
+  box-shadow: 0 0 8px #3ab6e4;
+}
+.form-control::placeholder { color: #1f6f8c; opacity: 1; }
+.form-control:-webkit-autofill { -webkit-text-fill-color: #33b5e5; box-shadow: 0 0 0 100px #000 inset; }
+.form-label { color: #fff; }
+.form-check-label,
+#id_responsible label { font-weight: 400; }
+#id_responsible label { display: flex; align-items: center; gap: 0.6rem; padding: 2px 0; }
+input[type=checkbox] { accent-color: #2a9fd6; }
+.field-error { color: #ff5a4d; }
+
+.actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+/* Inhaltstabelle */
+.items th { color: #33b5e5; font-weight: 500; }
+.items td.num, .items th.num { text-align: right; white-space: nowrap; }
+.items tbody tr:last-child td { border-bottom: 0; }
+.items td form { display: inline; margin-left: 0.75rem; }
+.items .btn-link { padding: 0; vertical-align: baseline; font-size: inherit; text-decoration: none; }
+.items .btn-link:hover { text-decoration: underline; }
+
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 70px); }
+.login-box { width: 100%; max-width: 360px; }
+
+.label-preview { width: 14rem; max-width: 100%; height: auto; background: #fff; border-radius: 2px; }
+
+/* Finger statt Maus: größere Trefferflächen */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; padding: 10px 14px; }
+  .items .btn-link { min-height: 0; padding: 10px 0; }
+  .items td a { display: inline-block; padding: 10px 0; }
+  input[type=checkbox] { width: 22px; height: 22px; }
+  #id_responsible label { min-height: 44px; }
+}
+
+/* Smartphone */
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+  /* unter 16 px zoomt der mobile Browser beim Antippen in das Feld hinein */
+  .form-control, .form-select { font-size: 16px; }
+  .actions > * { flex: 1 1 8rem; }
+  /* Aktionen unter die Bezeichnung statt in eine dritte Spalte */
+  .items thead { display: none; }
+  .items tr { display: grid; grid-template-columns: 3.5rem 1fr; border-bottom: 1px solid #282828; }
+  .items tr:last-child { border-bottom: 0; }
+  .items td { border: 0; padding: 6px 4px; }
+  .items td.acts { grid-column: 2; text-align: left; padding-top: 0; }
+  .login-wrap { align-items: flex-start; padding-top: 2rem; min-height: 0; }
+}

@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from . import oidc
+from .forms import LoginForm
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,9 @@ NEXT_SESSION_KEY = 'oidc_next'
 
 
 class MemberLoginView(LoginView):
-    """Zeigt den SSO-Knopf, wenn OIDC eingerichtet ist, sonst das Passwortformular."""
+    """Zeigt den SSO-Knopf, wenn OIDC eingerichtet ist, und das Formular für lokale Konten."""
+
+    authentication_form = LoginForm
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
