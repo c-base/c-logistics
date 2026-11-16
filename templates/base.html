@@ -7,17 +7,17 @@
   <title>{% block title %}c-base cargo crates{% endblock %} · c-logistics</title>
   <link rel="icon" href="{% static 'crates/logo.png' %}">
   <style>
-    /* Optik nach c-beam: Bootswatch „Cyborg“ auf abgedunkeltem Stationsbild. */
+    /* Optik nach c-beam (c-base-bootstrap): Bootswatch „Cyborg“ mit Monospace-Schrift auf abgedunkeltem Stationsbild. */
     :root {
       --bg:#060606; --panel:rgba(0,0,0,.6); --line:#282828;
-      --fg:#adafae; --muted:#888; --bright:#fff;
+      --fg:#999; --muted:#777; --bright:#fff;
       --accent:#2a9fd6; --accent-dark:#2180ac; --head:#33b5e5;
       --grey:#424242; --danger:#cc0000; --term:#3ab6e4;
     }
     * { box-sizing: border-box; }
     body {
       margin:0; padding-top:60px; min-height:100vh;
-      font:14px/1.43 "Roboto","Helvetica Neue",Helvetica,Arial,sans-serif; color:var(--fg);
+      font:14px/1.43 "Lucida Console","Andale Mono","Courier New",monospace; color:var(--fg);
       background-color:var(--bg);
       -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:rgba(42,159,214,.25);
     }
@@ -31,7 +31,8 @@
     .navbar { position:fixed; top:0; left:0; right:0; z-index:10; min-height:50px; background:var(--bg); border-bottom:1px solid var(--line); }
     .navbar > div { max-width:60rem; margin:0 auto; padding:0 15px; display:flex; flex-wrap:wrap; align-items:center; column-gap:1.25rem; min-height:50px; }
     .navbar a, .navbar button.link { color:var(--muted); text-decoration:none; font-size:14px; }
-    .navbar a:hover, .navbar button.link:hover { color:var(--bright); }
+    .navbar a:hover, .navbar button.link:hover { color:var(--bright); box-shadow:0 1px 0 var(--head); }
+    .navbar .brand:hover { box-shadow:none; }
     .navbar .brand { display:flex; align-items:center; gap:6px; color:var(--bright); font-size:18px; white-space:nowrap; }
     .navbar .spacer { flex:1; }
     .navbar form { margin:0; }
@@ -67,8 +68,8 @@
     .errorlist { color:#ff5a4d; }
     button, .button { font:inherit; padding:8px 12px; border-radius:4px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; display:inline-block; text-decoration:none; }
     button:hover, .button:hover { background:var(--accent-dark); border-color:var(--accent-dark); color:#fff; text-decoration:none; }
-    .button.secondary, button.secondary { background:var(--grey); border-color:var(--grey); }
-    .button.secondary:hover, button.secondary:hover { background:#282828; border-color:#282828; }
+    .button.secondary, button.secondary { background:#292929 linear-gradient(to bottom,#333,#191919); border-color:rgba(0,0,0,.25); text-shadow:0 -1px 0 rgba(0,0,0,.25); }
+    .button.secondary:hover, button.secondary:hover { background:#191919; border-color:rgba(0,0,0,.25); }
     button.danger { background:var(--danger); border-color:var(--danger); }
     button.danger:hover { background:#990000; border-color:#990000; }
     .button.block { display:block; text-align:center; }
