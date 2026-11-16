@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <h1 class="grow">c-base cargo crates</h1>
+  <a class="button" href="{% url 'crates:create' %}">Neue Crate</a>
+</div>
+<form method="get" class="row searchbar">
+  <input class="grow" type="search" name="q" enterkeyhint="search" autocapitalize="none" value="{{ query }}" placeholder="Name, ID oder Inhalt suchen">
+  <label><input type="checkbox" name="mine" value="1" {% if mine %}checked{% endif %}> nur meine</label>
+  <button class="secondary">Suchen</button>
+</form>
+{% for crate in object_list %}
+  <a class="card" href="{{ crate.get_absolute_url }}">
+    <div class="row">
+      <span class="code">{{ crate.code }}</span>
+      <strong class="grow">{{ crate.name }}</strong>
+    </div>
+    <div class="muted">
+      {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
+      · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}
+      {% if crate.location %}· {{ crate.location }}{% endif %}
+    </div>
+  </a>
+{% empty %}
+  <p class="muted">Keine Crates gefunden.</p>
+{% endfor %}
+{% if is_paginated %}
+  <p class="row">
+    {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
+    <span class="muted">Seite {{ page_obj.number }} von {{ paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.next_page_number }}">weiter →</a>{% endif %}
+  </p>
+{% endif %}
+{% endblock %}

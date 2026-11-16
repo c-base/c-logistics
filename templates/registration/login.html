@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}c-login{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="login-box">
+    {% if oidc_error %}<p class="errorlist center">Die Anmeldung über {{ oidc_provider_name }} ist fehlgeschlagen. Bitte versuche es erneut.</p>{% endif %}
+    {% if oidc_enabled %}
+    <a class="button block" href="{% url 'oidc-login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">mit {{ oidc_provider_name }} anmelden</a>
+    <p class="muted center" style="margin:1em 0">oder mit lokalem passwort:</p>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="center"><button>Login</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

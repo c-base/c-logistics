@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Inhalt · {{ crate.name }}{% endblock %}
+{% block content %}
+<h1>{% if object %}Position ändern{% else %}Position hinzufügen{% endif %}</h1>
+<p class="muted">in <a href="{{ crate.get_absolute_url }}">{{ crate.name }}</a></p>
+<form method="post" class="card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <div class="actions">
+    <button>Speichern</button>
+    <a class="button secondary" href="{{ crate.get_absolute_url }}">Abbrechen</a>
+  </div>
+</form>
+{% endblock %}

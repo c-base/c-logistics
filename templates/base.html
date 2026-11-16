@@ -1,0 +1,146 @@
+{% load static %}<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#060606">
+  <title>{% block title %}c-base cargo crates{% endblock %} · c-logistics</title>
+  <link rel="icon" href="{% static 'crates/logo.png' %}">
+  <style>
+    /* Optik nach c-beam: Bootswatch „Cyborg“ auf abgedunkeltem Stationsbild. */
+    :root {
+      --bg:#060606; --panel:rgba(0,0,0,.6); --line:#282828;
+      --fg:#adafae; --muted:#888; --bright:#fff;
+      --accent:#2a9fd6; --accent-dark:#2180ac; --head:#33b5e5;
+      --grey:#424242; --danger:#cc0000; --term:#3ab6e4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; padding-top:60px; min-height:100vh;
+      font:14px/1.43 "Roboto","Helvetica Neue",Helvetica,Arial,sans-serif; color:var(--fg);
+      background-color:var(--bg);
+      -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:rgba(42,159,214,.25);
+    }
+    /* Das Stationsbild liegt als feste Ebene hinter der Seite. `background-attachment:
+       fixed` ruckelt auf Android beim Scrollen bzw. wird ignoriert. */
+    body::before {
+      content:""; position:fixed; inset:0; z-index:-1;
+      background: linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.6)),
+                  url("{% static 'crates/bg.jpg' %}") center center / cover no-repeat;
+    }
+    .navbar { position:fixed; top:0; left:0; right:0; z-index:10; min-height:50px; background:var(--bg); border-bottom:1px solid var(--line); }
+    .navbar > div { max-width:60rem; margin:0 auto; padding:0 15px; display:flex; flex-wrap:wrap; align-items:center; column-gap:1.25rem; min-height:50px; }
+    .navbar a, .navbar button.link { color:var(--muted); text-decoration:none; font-size:14px; }
+    .navbar a:hover, .navbar button.link:hover { color:var(--bright); }
+    .navbar .brand { display:flex; align-items:center; gap:6px; color:var(--bright); font-size:18px; white-space:nowrap; }
+    .navbar .spacer { flex:1; }
+    .navbar form { margin:0; }
+    main { max-width:60rem; margin:0 auto; padding:0 15px 2rem; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { color:var(--head); text-decoration:underline; }
+    h1, h2, strong { color:var(--bright); font-weight:500; }
+    h1 { font-size:28px; margin:.5rem 0; line-height:1.1; }
+    h2 { font-size:20px; margin:1.75rem 0 .5rem; line-height:1.1; }
+    .card { display:block; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:15px; margin:.75rem 0; }
+    a.card { color:inherit; }
+    a.card:hover { border-color:var(--accent); text-decoration:none; color:inherit; }
+    .muted { color:var(--muted); }
+    .code { font-family:Menlo,Monaco,Consolas,"Courier New",monospace; letter-spacing:.05em; color:var(--head); }
+    .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+    .grow { flex:1 1 10rem; }
+    /* Eingabefelder im Stil von c-beams .terminal: schwarz, Monospace, blauer 2-px-Rahmen */
+    input, select, textarea {
+      font-family:"Andale Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace; font-size:14px; line-height:1.5em;
+      padding:10px; border:2px solid var(--term); border-radius:0; background:#000; color:var(--head);
+      caret-color:var(--head); max-width:100%; color-scheme:dark;
+    }
+    input::placeholder, textarea::placeholder { color:#1f6f8c; opacity:1; }
+    input:focus, select:focus, textarea:focus { outline:0; border-color:#fff; box-shadow:0 0 8px var(--term); }
+    input:-webkit-autofill { -webkit-text-fill-color:var(--head); box-shadow:0 0 0 100px #000 inset; }
+    input[type=text], input[type=password], input[type=search], input[type=number], textarea, select { width:100%; }
+    input[type=checkbox] { width:auto; accent-color:var(--accent); }
+    form p { margin:.9rem 0; }
+    form label { display:block; color:var(--bright); margin-bottom:.25rem; }
+    form ul, #id_responsible { list-style:none; padding:0; margin:.25rem 0; }
+    #id_responsible label, .row > label { color:var(--fg); }
+    .helptext { color:var(--muted); font-size:12px; }
+    .errorlist { color:#ff5a4d; }
+    button, .button { font:inherit; padding:8px 12px; border-radius:4px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; display:inline-block; text-decoration:none; }
+    button:hover, .button:hover { background:var(--accent-dark); border-color:var(--accent-dark); color:#fff; text-decoration:none; }
+    .button.secondary, button.secondary { background:var(--grey); border-color:var(--grey); }
+    .button.secondary:hover, button.secondary:hover { background:#282828; border-color:#282828; }
+    button.danger { background:var(--danger); border-color:var(--danger); }
+    button.danger:hover { background:#990000; border-color:#990000; }
+    .button.block { display:block; text-align:center; }
+    button.link { border:0; background:none; color:var(--accent); padding:0; }
+    button.link:hover { background:none; color:var(--head); }
+    table { width:100%; border-collapse:collapse; }
+    th { color:var(--head); font-weight:500; }
+    td, th { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    tr:last-child td { border-bottom:0; }
+    td.num, th.num { text-align:right; white-space:nowrap; }
+    dl { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1rem; margin:0; }
+    dt { color:var(--muted); } dd { margin:0; color:var(--bright); }
+    code { color:var(--head); }
+    .login-wrap { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 60px); }
+    .login-box { width:100%; max-width:360px; }
+    .center { text-align:center; }
+    td form { display:inline; margin-left:.75rem; }
+    .actions { display:flex; gap:.6rem; flex-wrap:wrap; }
+    img { max-width:100%; height:auto; }
+    .card { overflow-wrap:anywhere; }
+
+    /* Finger statt Maus: größere Trefferflächen */
+    @media (pointer: coarse) {
+      button, .button { min-height:44px; padding:10px 14px; }
+      button.link { min-height:0; padding:10px 0; }
+      td a { display:inline-block; padding:10px 0; }
+      input[type=checkbox] { width:22px; height:22px; vertical-align:middle; }
+      #id_responsible label, .row > label { display:flex; align-items:center; gap:.6rem; min-height:44px; margin:0; }
+      .navbar a, .navbar button.link { padding:14px 0; }
+    }
+
+    /* Smartphone */
+    @media (max-width: 600px) {
+      body { font-size:16px; }
+      /* unter 16 px zoomt der mobile Browser beim Antippen in das Feld hinein */
+      input, select, textarea { font-size:16px; }
+      main { padding:0 12px 2rem; }
+      h1 { font-size:24px; overflow-wrap:anywhere; }
+      h2 { font-size:19px; }
+      .card { padding:12px; }
+      .navbar > div { padding:0 12px; column-gap:1rem; }
+      .navbar .wide-only { display:none; }
+      .navbar .brand { font-size:17px; }
+      .actions > * { flex:1 1 8rem; text-align:center; }
+      .searchbar > input { flex-basis:100%; }
+      .searchbar > button { margin-left:auto; }
+      dl { grid-template-columns:1fr; gap:0; }
+      dd { margin-bottom:.6rem; }
+      /* Inhaltstabelle: Aktionen unter die Bezeichnung statt in eine dritte Spalte */
+      table.items thead { display:none; }
+      table.items tr { display:grid; grid-template-columns:3.5rem 1fr; border-bottom:1px solid var(--line); }
+      table.items tr:last-child { border-bottom:0; }
+      table.items td { border:0; padding:6px 4px; }
+      table.items td.acts { grid-column:2; text-align:left; padding-top:0; }
+      .login-wrap { align-items:flex-start; padding-top:2rem; min-height:0; }
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar"><div>
+  <a class="brand" href="{% url 'crates:list' %}"><img src="{% static 'crates/logo.png' %}" alt="" width="36" height="36"> c-logistics</a>
+  {% if user.is_authenticated %}
+    <a href="{% url 'crates:list' %}">crates</a>
+    <a class="wide-only" href="{% url 'crates:create' %}">neue crate</a>
+    {% if user.is_staff %}<a href="{% url 'admin:index' %}">admin</a>{% endif %}
+    <span class="spacer"></span>
+    <span class="muted wide-only">{{ user }}</span>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link">c-logout</button></form>
+  {% else %}
+    <a href="{% url 'login' %}">c-login</a>
+  {% endif %}
+</div></nav>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ crate.name }}{% endblock %}
+{% block content %}
+<div class="row">
+  <h1 class="grow">{{ crate.name }}</h1>
+  <a class="button secondary" href="{% url 'crates:update' crate.code %}">Bearbeiten</a>
+</div>
+<div class="card">
+  <dl>
+    <dt>ID</dt><dd class="code">{{ crate.code }}</dd>
+    <dt>Verantwortlich</dt><dd>{{ crate.responsible.all|join:", "|default:"–" }}</dd>
+    <dt>Lagerort</dt><dd>{{ crate.location|default:"–" }}</dd>
+    <dt>Größe</dt><dd>{{ crate.get_size_display }}{% if crate.height_mm %}, {{ crate.height_mm }} mm hoch{% endif %}</dd>
+    {% if crate.color %}<dt>Farbe</dt><dd>{{ crate.color }}</dd>{% endif %}
+  </dl>
+  {% if crate.description %}<p>{{ crate.description|linebreaksbr }}</p>{% endif %}
+</div>
+
+<h2>Inhalt</h2>
+<div class="card">
+  {% if crate.items.all %}
+  <table class="items">
+    <thead><tr><th class="num">Menge</th><th>Bezeichnung</th><th></th></tr></thead>
+    {% for item in crate.items.all %}
+    <tr>
+      <td class="num">{{ item.quantity }} ×</td>
+      <td>{{ item.name }}{% if item.note %}<div class="muted">{{ item.note }}</div>{% endif %}</td>
+      <td class="num acts">
+        <a href="{% url 'crates:item-update' item.pk %}">ändern</a>
+        <form method="post" action="{% url 'crates:item-delete' item.pk %}"
+              onsubmit="return confirm('„{{ item.name|escapejs }}“ entfernen?')">
+          {% csrf_token %}<button class="link">entfernen</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">Diese Crate ist noch leer.</p>
+  {% endif %}
+</div>
+
+<h2>Position hinzufügen</h2>
+<form method="post" action="{% url 'crates:item-create' crate.code %}" class="card">
+  {% csrf_token %}
+  {{ item_form.as_p }}
+  <button>Hinzufügen</button>
+</form>
+<h2>Label &amp; NFC-Tag</h2>
+<div class="card row">
+  <img src="{% url 'crates:label' crate.code %}" alt="Label mit QR-Code und ID {{ crate.code }}"
+       style="width:14rem; max-width:100%; background:#fff; border-radius:2px">
+  <div class="grow">
+    <p>QR-Code und NFC-Tag zeigen auf:<br><span class="code" style="word-break:break-all">{{ public_url }}</span></p>
+    {% if not base_url_configured %}
+    <p class="muted">⚠ <code>PUBLIC_BASE_URL</code> ist nicht gesetzt – die Adresse stammt aus dem aktuellen Aufruf. Vor dem Drucken die endgültige Adresse festlegen.</p>
+    {% endif %}
+    <div class="actions">
+      <a class="button secondary" href="{% url 'crates:label-pdf' crate.code %}?download=1">Label als PDF</a>
+      <a class="button secondary" href="{% url 'crates:label' crate.code %}?download=1">Label als PNG</a>
+    </div>
+  </div>
+</div>
+<p class="muted">Zuletzt geändert: {{ crate.updated_at|date:"SHORT_DATETIME_FORMAT" }}</p>
+{% endblock %}
