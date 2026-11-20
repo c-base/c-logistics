@@ -125,6 +125,11 @@ class CrateTests(TestCase):
         self.assertEqual(public_url(self.crate), f'https://crates.example.org/{self.crate.code}')
         self.assertContains(self.client.get(self.crate.get_absolute_url()), public_url(self.crate))
 
+    @override_settings(PUBLIC_BASE_URL='https://crates.c-base.org')
+    def test_detail_offers_the_qr_code_link_for_copying(self):
+        response = self.client.get(self.crate.get_absolute_url())
+        self.assertContains(response, f'id="copy-link" data-link="https://crates.c-base.org/{self.crate.code}"')
+
     def test_label_is_landscape_png_in_tape_width(self):
         response = self.client.get(reverse('crates:label', args=[self.crate.code]))
         self.assertEqual(response['Content-Type'], 'image/png')
