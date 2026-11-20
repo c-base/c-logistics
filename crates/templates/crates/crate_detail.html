@@ -118,7 +118,7 @@
       <p class="muted">⚠ <code>PUBLIC_BASE_URL</code> ist nicht gesetzt – die Adresse stammt aus dem aktuellen Aufruf. Vor dem Drucken die endgültige Adresse festlegen.</p>
       {% endif %}
       <div class="actions">
-        <a class="btn btn-secondary" href="{% url 'crates:label-pdf' crate.code %}?download=1">Label als PDF</a>
+        <a class="btn btn-secondary" href="{% url 'crates:label-pdf' crate.code %}?download=1" title="PDF mit {{ copies }} Seite{{ copies|pluralize:"n" }}">Label als PDF{% if copies > 1 %} ({{ copies }}×){% endif %}</a>
         <a class="btn btn-secondary" href="{% url 'crates:label' crate.code %}?download=1">Label als PNG</a>
       </div>
     </div>
@@ -129,8 +129,8 @@
   <div class="card-body">
     <p>Alle Angaben, der Inhalt und bis zu vier Fotos auf einer Karte – zum Drucken auf DIN A4 und Ausschneiden.</p>
     <div class="actions">
-      <a class="btn btn-secondary" href="{% url 'crates:card' crate.code %}?format=a5">Karte DIN A5</a>
-      <a class="btn btn-secondary" href="{% url 'crates:card' crate.code %}?format=a6">Karte DIN A6</a>
+      <a class="btn btn-secondary" href="{% url 'crates:card' crate.code %}?format=a5">Karte DIN A5{% if copies > 1 %} ({{ copies }}×){% endif %}</a>
+      <a class="btn btn-secondary" href="{% url 'crates:card' crate.code %}?format=a6">Karte DIN A6{% if copies > 1 %} ({{ copies }}×){% endif %}</a>
     </div>
   </div>
 </div>

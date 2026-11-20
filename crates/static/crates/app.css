@@ -90,6 +90,8 @@ input[type=checkbox] { accent-color: #2a9fd6; }
 .crate-row .pick input { width: 18px; height: 18px; }
 .print-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; margin-top: 0.75rem;
              background: rgba(6, 6, 6, 0.92); border: 1px solid #282828; }
+.print-bar .copies { display: flex; align-items: center; gap: 0.35rem; margin: 0; white-space: nowrap; }
+.print-bar .copies input { width: 4.2rem; padding: 4px 8px; text-align: right; }
 .print-bar .form-check { display: flex; align-items: center; gap: 0.4rem; padding-left: 0; }
 .print-bar .form-check-input { margin: 0; float: none; }
 

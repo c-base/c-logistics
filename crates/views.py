@@ -8,7 +8,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import generic
 
 from .forms import CrateForm, ItemForm
-from .labels import FONTS, label_pdf, label_png, labels_pdf, labels_ql_raster, public_url
+from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
 from .models import Crate, Item, Photo, normalize_code
 from .photos import PhotoError
 
@@ -49,6 +49,8 @@ class CrateListView(LoginRequiredMixin, generic.ListView):
         context = super().get_context_data(**kwargs)
         context['query'] = self.request.GET.get('q', '').strip()
         context['mine'] = bool(self.request.GET.get('mine'))
+        context['copies'] = settings.PRINT_COPIES
+        context['max_copies'] = MAX_COPIES
         return context
 
 
@@ -58,7 +60,20 @@ class CrateDetailView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
         context['item_form'] = ItemForm()
         context['public_url'] = public_url(self.object, self.request)
         context['base_url_configured'] = bool(settings.PUBLIC_BASE_URL)
+        context['copies'] = settings.PRINT_COPIES
         return context
+
+
+MAX_COPIES = 10
+
+
+def copies_from(request):
+    """Wie oft jedes Label bzw. jede Karte gedruckt wird: ?copies=1…10, sonst PRINT_COPIES."""
+    try:
+        copies = int(request.GET.get('copies', ''))
+    except ValueError:
+        copies = settings.PRINT_COPIES
+    return min(max(copies, 1), MAX_COPIES)
 
 
 class CardSheetMixin:
@@ -76,6 +91,8 @@ class CardSheetMixin:
         chosen = self.request.GET.get('format')
         chosen = chosen if chosen in self.formats else 'a5'
         per_sheet = self.formats[chosen][1]
+        copies = copies_from(self.request)
+        # Exemplare einer Crate stehen hintereinander, bei A5 also auf demselben Blatt.
         cards = [
             {
                 'crate': crate,
@@ -83,16 +100,25 @@ class CardSheetMixin:
                 'public_url': public_url(crate, self.request),
             }
             for crate in crates
+            for _ in range(copies)
         ]
         query = self.request.GET.copy()
         query.pop('format', None)
+        query['copies'] = copies
+        base = query.copy()
+        base.pop('copies', None)
         return {
+            'crate_count': len(crates),
+            'copies': copies,
+            'copy_choices': sorted({1, 2, 3, 4, copies}),
+            # Auswahl ohne Kopienzahl, für die Umschalter der Exemplare
+            'selection_base': base.urlencode(),
             'format': chosen,
             'formats': [(key, label) for key, (label, _) in self.formats.items()],
             'per_sheet': per_sheet,
             'sheets': [cards[start:start + per_sheet] for start in range(0, len(cards), per_sheet)],
             'cards': cards,
-            # Auswahl ohne Format, damit die Umschalter sie behalten
+            # Auswahl samt Kopienzahl, aber ohne Format, für die Umschalter des Formats
             'selection': query.urlencode(),
         }
 
@@ -138,7 +164,8 @@ class CrateLabelView(LoginRequiredMixin, CrateLookupMixin, generic.View):
         if font not in FONTS:
             font = None
         if kwargs['extension'] == 'pdf':
-            response = HttpResponse(label_pdf(url, crate.code, font=font), content_type='application/pdf')
+            pages = [(url, crate.code)] * copies_from(request)
+            response = HttpResponse(labels_pdf(pages, font=font), content_type='application/pdf')
         else:
             response = HttpResponse(label_png(url, crate.code, font=font), content_type='image/png')
         disposition = 'attachment' if request.GET.get('download') else 'inline'
@@ -164,7 +191,8 @@ class LabelSheetView(LoginRequiredMixin, generic.View):
         if not crates:
             messages.error(request, 'Bitte mindestens eine Crate auswählen.')
             return redirect('crates:list')
-        labels = [(public_url(crate, request), crate.code) for crate in crates]
+        copies = copies_from(request)
+        labels = [(public_url(crate, request), crate.code) for crate in crates for _ in range(copies)]
         name = f'crate-{crates[0].code}' if len(crates) == 1 else f'crates-{crates[0].code}-{crates[-1].code}'
         if request.GET.get('format') == 'ql':
             try:

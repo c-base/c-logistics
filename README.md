@@ -63,6 +63,19 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - `LABEL_WIDTH_PX` ist die Druckbreite der Rolle in Pixeln und damit die
   Breite des Labels (62 mm = 696, 29 mm = 306); der Inhalt skaliert mit.
 
+## Exemplare
+
+In der Regel braucht man jedes Label und jede Karte doppelt, eins für jede
+Stirnseite der Crate. Deshalb kommt alles standardmäßig zweimal heraus:
+
+- In der Liste steht neben den Druckknöpfen das Feld „je … ×“ (1 bis 10).
+- Die Knöpfe auf der Crate-Seite nehmen die Voreinstellung; in der
+  Kartenansicht lässt sie sich oben umschalten.
+- An jeder Druckadresse geht `?copies=N`; die Voreinstellung steht in
+  `PRINT_COPIES` (Standard 2).
+- Exemplare derselben Crate stehen hintereinander: zwei Label-Seiten in Folge,
+  bei A5 beide Karten auf einem Blatt.
+
 ## Karte zum Ausdrucken
 
 Neben dem kleinen Label gibt es unter `/<ID>/card/` eine Karte mit allen

@@ -13,7 +13,7 @@ from .models import Crate, Item, Photo, format_code
 
 
 # Unabhängig von einer lokalen .env.
-@override_settings(PUBLIC_BASE_URL='', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696)
+@override_settings(PUBLIC_BASE_URL='', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696, PRINT_COPIES=1)
 class CrateTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -201,6 +201,7 @@ def photo_upload(size=(3000, 2000), name='IMG_0001.jpg', orientation=None):
     return SimpleUploadedFile(name, buffer.getvalue(), content_type='image/jpeg')
 
 
+@override_settings(PRINT_COPIES=1)
 class PhotoTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -400,7 +401,7 @@ class AddressTests(TestCase):
         self.assertContains(self.client.get('/cafe'), 'Kaffee')
 
 
-@override_settings(PUBLIC_BASE_URL='https://crates.c-base.org', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696)
+@override_settings(PUBLIC_BASE_URL='https://crates.c-base.org', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696, PRINT_COPIES=1)
 class LabelSheetTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -465,3 +466,58 @@ class LabelSheetTests(TestCase):
     def test_labels_require_login(self):
         self.client.logout()
         self.assertEqual(self.client.get(self.url, {'c': self.codes}).status_code, 302)
+
+
+@override_settings(PUBLIC_BASE_URL='https://crates.c-base.org', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696, PRINT_COPIES=2)
+class CopiesTests(TestCase):
+    """In der Regel braucht man jedes Label und jede Karte doppelt."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.member = get_user_model().objects.create_user('alice')
+        cls.codes = [Crate.objects.create(name=f'Kiste {n}').code for n in range(3)]
+
+    def setUp(self):
+        self.client.force_login(self.member)
+
+    def pages(self, response):
+        return response.content.count(b'/Type /Page\n')
+
+    def test_labels_come_twice_by_default_and_as_often_as_asked(self):
+        url = reverse('crates:labels')
+        self.assertEqual(self.pages(self.client.get(url, {'c': self.codes})), 6)
+        self.assertEqual(self.pages(self.client.get(url, {'c': self.codes, 'copies': '1'})), 3)
+        self.assertEqual(self.pages(self.client.get(url, {'c': self.codes, 'copies': '3'})), 9)
+        self.assertEqual(self.pages(self.client.get(reverse('crates:label-pdf', args=['0001']))), 2)
+
+    def test_copies_of_a_label_follow_each_other_in_the_ql_file(self):
+        response = self.client.get(reverse('crates:labels'), {'c': self.codes[:2], 'format': 'ql'})
+        expected = labels_ql_raster([(f'https://crates.c-base.org/{code}', code) for code in ['0001', '0001', '0002', '0002']])
+        self.assertEqual(response.content, expected)
+
+    def test_cards_come_twice_so_one_a5_sheet_holds_both_copies(self):
+        response = self.client.get(reverse('crates:cards'), {'c': self.codes, 'format': 'a5'})
+        sheets = [[card['crate'].code for card in sheet] for sheet in response.context['sheets']]
+        self.assertEqual(sheets, [['0001', '0001'], ['0002', '0002'], ['0003', '0003']])
+        a6 = self.client.get(reverse('crates:cards'), {'c': self.codes, 'format': 'a6', 'copies': '2'})
+        self.assertEqual([len(sheet) for sheet in a6.context['sheets']], [4, 2])
+        single = self.client.get(reverse('crates:card', args=['0001']))
+        self.assertEqual(len(single.context['cards']), 2)
+        self.assertContains(single, '<title>Karte 0001')
+
+    def test_number_of_copies_is_limited_and_nonsense_falls_back_to_the_default(self):
+        url = reverse('crates:labels')
+        self.assertEqual(self.pages(self.client.get(url, {'c': self.codes[:1], 'copies': '999'})), 10)
+        self.assertEqual(self.pages(self.client.get(url, {'c': self.codes[:1], 'copies': '0'})), 1)
+        self.assertEqual(self.pages(self.client.get(url, {'c': self.codes[:1], 'copies': 'viele'})), 2)
+
+    def test_card_page_keeps_selection_when_switching_copies_or_format(self):
+        response = self.client.get(reverse('crates:cards'), {'c': self.codes[:2], 'format': 'a6', 'copies': '3'})
+        self.assertContains(response, 'c=0001&amp;c=0002&amp;format=a6&amp;copies=1')
+        self.assertContains(response, 'c=0001&amp;c=0002&amp;copies=3&amp;format=a5')
+
+    def test_list_and_crate_page_offer_the_default_number_of_copies(self):
+        self.assertContains(self.client.get(reverse('crates:list')), 'name="copies" value="2"')
+        page = self.client.get('/0001')
+        self.assertContains(page, 'Label als PDF (2×)')
+        self.assertContains(page, 'Karte DIN A5 (2×)')

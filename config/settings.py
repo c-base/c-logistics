@@ -215,6 +215,10 @@ OIDC_CLIENT_SECRET = os.environ.get('OIDC_CLIENT_SECRET', '')
 OIDC_SCOPE = os.environ.get('OIDC_SCOPE', 'openid profile email')
 OIDC_PROVIDER_NAME = os.environ.get('OIDC_PROVIDER_NAME', 'c-base-account')
 
+# Wie oft jedes Label und jede Karte gedruckt wird, wenn nichts anderes gewählt
+# ist. Üblich sind zwei: eins für jede Stirnseite der Crate.
+PRINT_COPIES = int(os.environ.get('PRINT_COPIES') or 2)
+
 # Schrift auf dem Label: 'baijamjuree' (Nummer in Orbitron), 'orbitron' oder
 # 'anybody' (siehe crates/labels.py).
 LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')

@@ -46,6 +46,9 @@
   <div class="print-bar">
     <label class="form-check mb-0"><input class="form-check-input" type="checkbox" id="pick-all"> <span class="form-check-label">alle</span></label>
     <span class="muted flex-grow-1" id="pick-count">Crates zum Drucken auswählen</span>
+    <label class="copies" title="Wie oft jedes Label und jede Karte gedruckt wird">je
+      <input class="form-control" type="number" name="copies" value="{{ copies }}" min="1" max="{{ max_copies }}" inputmode="numeric" aria-label="Exemplare je Crate">×
+    </label>
     <button class="btn btn-secondary" name="format" value="pdf" formaction="{% url 'crates:labels' %}" title="PDF, eine Seite pro Label – der Druckertreiber schneidet nach jeder Seite">Labels PDF</button>
     <button class="btn btn-secondary" name="format" value="ql" formaction="{% url 'crates:labels' %}" title="Druckdatei für den Brother QL-700 mit Schneidbefehl nach jedem Label">Labels QL-700</button>
     <button class="btn btn-secondary" name="format" value="a5" title="2 Karten pro A4-Blatt">Karten A5</button>
