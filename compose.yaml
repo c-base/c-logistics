@@ -4,11 +4,6 @@
 #
 # Einstellungen kommen aus der Datei .env daneben (Vorlage: .env.example).
 # Der Container spricht nur HTTP; HTTPS macht der Reverse Proxy davor.
-# Die Versionsangabe braucht nur das alte docker-compose 1.x (mit Bindestrich):
-# ohne sie liest es die Datei im Uraltformat und scheitert an ${VAR:-Standard}.
-# Neuere Werkzeuge ignorieren sie, „docker compose“ meldet höchstens einen Hinweis.
-version: "3.7"
-
 services:
   app:
     build: .
