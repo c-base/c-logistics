@@ -5,6 +5,11 @@
 # In der .env muss POSTGRES_PASSWORD stehen (nur Buchstaben, Ziffern, - und _,
 # weil es unverändert in die Datenbank-Adresse eingesetzt wird).
 # Die Fotos bleiben im Volume `data`.
+# Die Versionsangabe braucht nur das alte docker-compose 1.x (mit Bindestrich):
+# ohne sie liest es die Datei im Uraltformat und scheitert an ${VAR:-Standard}.
+# Neuere Werkzeuge ignorieren sie, „docker compose“ meldet höchstens einen Hinweis.
+version: "3.7"
+
 services:
   app:
     environment:
