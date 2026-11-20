@@ -5,6 +5,7 @@ Druckbreite der Rolle, die Bildhöhe die Länge des abgeschnittenen Stücks.
 """
 
 import io
+import math
 from pathlib import Path
 
 import qrcode
@@ -146,15 +147,27 @@ def label_png(url, code, font=None):
     return buffer.getvalue()
 
 
+# Der Drucker kann die ersten und letzten 3 mm eines Etiketts nicht bedrucken
+# (Vorschub bis zum Messer). Die PDF-Seite bekommt deshalb oben und unten
+# mindestens so viel Rand, sonst schneidet der Treiber dort den Inhalt ab.
+PDF_FEED_MARGIN_MM = 3
+
+
+def pdf_page_mm(label_height_px):
+    """Länge der PDF-Seite in ganzen Millimetern, passend für `-o PageSize=Custom.62x…mm`."""
+    return math.ceil(label_height_px / LABEL_DPI * 25.4 + 2 * PDF_FEED_MARGIN_MM)
+
+
 def _pdf_page(label):
     tape_px = max(label.width, round(TAPE_WIDTH_MM / 25.4 * LABEL_DPI))
-    page = Image.new('1', (tape_px, label.height), 1)
-    page.paste(label, ((tape_px - label.width) // 2, 0))
+    page_px = round(pdf_page_mm(label.height) / 25.4 * LABEL_DPI)
+    page = Image.new('1', (tape_px, page_px), 1)
+    page.paste(label, ((tape_px - label.width) // 2, (page_px - label.height) // 2))
     return page
 
 
 def labels_pdf(labels, font=None):
-    """Mehrere Labels als PDF, eine Seite pro Label: 62 mm breit, so hoch wie das Etikett lang ist.
+    """Mehrere Labels als PDF, eine Seite pro Label: 62 mm breit, Etikett plus Rand für den Vorschub lang.
 
     `labels` ist eine Liste von (url, code). Im PDF selbst steht kein
     Schneidbefehl; der Druckertreiber schneidet nach jeder Seite (CUPS:

@@ -144,8 +144,9 @@ class CrateTests(TestCase):
         self.assertIn('crate-0001.pdf', response['Content-Disposition'])
         self.assertTrue(response.content.startswith(b'%PDF'))
         self.assertEqual(response.content.count(b'/Type /Page\n'), 1)
-        # 62 mm = 175,7 pt
-        self.assertRegex(response.content, rb'/MediaBox \[ 0 0 175\.\d+ ')
+        # 62 mm = 175,7 pt breit; 32 mm = 90,7 pt lang: Label (25 mm) plus 3 mm
+        # Rand oben und unten, die der Drucker nicht bedrucken kann
+        self.assertRegex(response.content, rb'/MediaBox \[ 0 0 175\.\d+ 90\.\d+ \]')
 
     def test_label_does_not_depend_on_changeable_crate_data(self):
         before = self.client.get(reverse('crates:label', args=[self.crate.code])).content

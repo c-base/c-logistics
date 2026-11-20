@@ -12,9 +12,11 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       Schneidbefehl ist nach Brothers Befehlsreferenz und dem Quelltext von
       brother_ql gebaut, aber noch nie an einen Drucker gegangen. Mit zwei, drei
       Labels prüfen: Druckbild seitenrichtig und mittig, Schnitt nach jedem Label.
-- [ ] **Testdruck auf dem Brother QL-700** (62 mm endlos): passende `PageSize`
-      der CUPS-Warteschlange finden (`62X1` … `62X4`), Schnitt prüfen, QR-Code
-      aus üblichem Abstand mit Android scannen.
+- [x] **Testdruck als PDF** am QL-570 (62 mm endlos, `ptouch`-Treiber): passt mit
+      `-o PageSize=Custom.62x32mm -o nopdfAutoRotate`, siehe README.
+- [ ] **Noch offen beim Drucken**: Sammel-PDF mit mehreren Labels (Schnitt nach
+      jeder Seite?), QR-Code aus üblichem Abstand mit Android scannen, und der
+      QL-700 mit dem Brother-Treiber (`PageSize` dort `62X1` … `62X4`).
 
 ## P1 – vor dem Betrieb
 

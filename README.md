@@ -36,13 +36,22 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - Die App liefert das Label in Druckauflösung (300 dpi) als PNG unter
   `/<ID>/label.png` und als einseitiges PDF unter `/<ID>/label.pdf`. Von
   welchem Gerät gedruckt wird, ist bewusst offen.
-- Abschneiden: kein eigener Befehl nötig, das regelt der Druckertreiber. In der
-  CUPS-Warteschlange des QL-700 heißen die Optionen `BrCutLabel` (alle n
+- PDF drucken (erprobt am QL-570 mit dem freien `ptouch`-Treiber):
+  `lp -d QL-570 -o PageSize=Custom.62x32mm -o nopdfAutoRotate crate-0001.pdf`
+  - Die PDF-Seite ist 62 × 32 mm: das Label (25 mm) plus oben und unten gut
+    3 mm Rand, die der Drucker nicht bedrucken kann. Die Länge in `PageSize`
+    muss zur PDF-Seite passen, sonst wird das Label beschnitten.
+  - Ohne `nopdfAutoRotate` und mit `PageSize=62mm` dreht CUPS die querformatige
+    Seite und druckt das Label längs aufs Band, mit viel Leerraum. Dasselbe
+    passiert beim Drucken aus dem Dialog von Firefox.
+- Abschneiden: kein eigener Befehl nötig, das regelt der Druckertreiber. Beim
+  `ptouch`-Treiber ist der Schnitt voreingestellt (`AutoCut`); im
+  Brother-Treiber des QL-700 heißen die Optionen `BrCutLabel` (alle n
   Etiketten schneiden) und `BrCutAtEnd` (am Ende des Auftrags schneiden).
 - Mehrere Labels auf einmal: in der Liste Crates anhaken, dann
   - **„Labels PDF“** – ein PDF mit einer Seite pro Label (`/labels/?c=…`).
     Im PDF steht kein Schneidbefehl; der Druckertreiber schneidet nach jeder
-    Seite (CUPS: `-o BrCutLabel=1`).
+    Seite. Gedruckt wird es mit denselben `lp`-Optionen wie ein einzelnes Label.
   - **„Labels QL-700“** – eine Druckdatei in Brothers Rasterformat
     (`/labels/?c=…&format=ql`), die den Schneidbefehl nach jedem Label selbst
     enthält. Sie geht ohne Treiber roh an den Drucker:
