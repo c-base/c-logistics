@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from PIL import Image, ImageOps
 from django.urls import reverse
 
-from .labels import FONTS, public_url, render_label
+from .labels import FONTS, labels_ql_raster, public_url, render_label
 from .models import Crate, Item, Photo, format_code
 
 
@@ -392,3 +392,70 @@ class AddressTests(TestCase):
         self.assertEqual(self.client.get('/cafe').status_code, 404)
         Crate.objects.create(name='Kaffee', code='CAFE')
         self.assertContains(self.client.get('/cafe'), 'Kaffee')
+
+
+@override_settings(PUBLIC_BASE_URL='https://crates.c-base.org', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696)
+class LabelSheetTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.member = get_user_model().objects.create_user('alice')
+        cls.codes = [Crate.objects.create(name=f'Kiste {n}').code for n in range(3)]
+
+    def setUp(self):
+        self.client.force_login(self.member)
+        self.url = reverse('crates:labels')
+
+    def test_pdf_has_one_page_per_selected_crate(self):
+        response = self.client.get(self.url, {'c': self.codes, 'format': 'pdf'})
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('crates-0001-0003-labels.pdf', response['Content-Disposition'])
+        self.assertEqual(response.content.count(b'/Type /Page\n'), 3)
+
+    def test_ql_file_carries_every_label_with_a_cut_after_each(self):
+        labels = [(f'https://crates.c-base.org/{code}', code) for code in self.codes]
+        data = labels_ql_raster(labels)
+        height = render_label(*labels[0]).height
+        self.assertEqual(data[:202], b'\x00' * 200 + b'\x1b\x40')
+        page = 13 + 4 + 4 + 4 + 5 + height * 93 + 1
+        self.assertEqual(len(data), 202 + 3 * page)
+        for index in range(3):
+            block = data[202 + index * page:202 + (index + 1) * page]
+            # Endlosband 62 mm, Zeilenzahl, erste Seite / Folgeseite
+            self.assertEqual(block[:13], b'\x1b\x69\x7a\xce\x0a\x3e\x00' + height.to_bytes(4, 'little') + bytes([min(index, 1), 0]))
+            # automatisch schneiden, nach jedem Label, auch nach dem letzten
+            self.assertEqual(block[13:25], b'\x1b\x69\x4d\x40' + b'\x1b\x69\x41\x01' + b'\x1b\x69\x4b\x08')
+            self.assertEqual(block[30:33], b'\x67\x00\x5a')
+            self.assertEqual(block[-1:], b'\x1a')
+
+    def test_ql_raster_is_the_mirrored_label_inside_the_print_head(self):
+        url, code = 'https://crates.c-base.org/0001', '0001'
+        label = render_label(url, code)
+        data = labels_ql_raster([(url, code)])
+        start = 202 + 30
+        rows = b''.join(data[start + row * 93 + 3:start + (row + 1) * 93] for row in range(label.height))
+        printed = Image.frombytes('1', (720, label.height), rows)
+        expected = Image.new('1', (720, label.height), 0)
+        inverted = ImageOps.invert(label.convert('L')).convert('1')
+        expected.paste(inverted.transpose(Image.Transpose.FLIP_LEFT_RIGHT), (12, 0))
+        self.assertEqual(printed.tobytes(), expected.tobytes())
+        self.assertGreater(sum(printed.convert('L').tobytes()), 0)
+
+    def test_ql_download_and_missing_selection(self):
+        response = self.client.get(self.url, {'c': self.codes[:1], 'format': 'ql'})
+        self.assertEqual(response['Content-Type'], 'application/octet-stream')
+        self.assertIn('attachment; filename="crate-0001-ql700.bin"', response['Content-Disposition'])
+        self.assertEqual(response.content, labels_ql_raster([('https://crates.c-base.org/0001', '0001')]))
+        self.assertRedirects(self.client.get(self.url), reverse('crates:list'))
+
+    @override_settings(LABEL_WIDTH_PX=500)
+    def test_ql_file_needs_a_known_tape_width(self):
+        response = self.client.get(self.url, {'c': self.codes, 'format': 'ql'}, follow=True)
+        self.assertContains(response, 'Keine QL-Rolle')
+
+    def test_list_offers_label_printing_for_the_selection(self):
+        response = self.client.get(reverse('crates:list'))
+        self.assertContains(response, f'formaction="{self.url}"', count=2)
+
+    def test_labels_require_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url, {'c': self.codes}).status_code, 302)

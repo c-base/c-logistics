@@ -8,7 +8,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import generic
 
 from .forms import CrateForm, ItemForm
-from .labels import FONTS, label_pdf, label_png, public_url
+from .labels import FONTS, label_pdf, label_png, labels_pdf, labels_ql_raster, public_url
 from .models import Crate, Item, Photo, normalize_code
 from .photos import PhotoError
 
@@ -111,8 +111,7 @@ class CardSheetView(LoginRequiredMixin, CardSheetMixin, generic.TemplateView):
     """Karten mehrerer Crates zusammen auf möglichst wenigen Blättern: /cards/?c=0001&c=0002"""
 
     def get(self, request, *args, **kwargs):
-        codes = {normalize_code(code) for code in request.GET.getlist('c') if len(code) <= 4}
-        self.crates = list(Crate.objects.filter(code__in=codes).order_by('code'))
+        self.crates = selected_crates(request)
         if not self.crates:
             messages.error(request, 'Bitte mindestens eine Crate auswählen.')
             return redirect('crates:list')
@@ -144,6 +143,40 @@ class CrateLabelView(LoginRequiredMixin, CrateLookupMixin, generic.View):
             response = HttpResponse(label_png(url, crate.code, font=font), content_type='image/png')
         disposition = 'attachment' if request.GET.get('download') else 'inline'
         response['Content-Disposition'] = f'{disposition}; filename="crate-{crate.code}.{kwargs["extension"]}"'
+        return response
+
+
+def selected_crates(request):
+    """Die in der Liste angehakten Crates (?c=0001&c=0002), nach ID sortiert."""
+    codes = {normalize_code(code) for code in request.GET.getlist('c') if len(code) <= 4}
+    return list(Crate.objects.filter(code__in=codes).order_by('code'))
+
+
+class LabelSheetView(LoginRequiredMixin, generic.View):
+    """Labels mehrerer Crates in einer Druckdatei für den QL-700: /labels/?c=0001&c=0002
+
+    format=pdf  eine Seite pro Label; der Druckertreiber schneidet nach jeder Seite
+    format=ql   Brother-Rasterdaten mit Schneidbefehl nach jedem Label, roh an den Drucker
+    """
+
+    def get(self, request, *args, **kwargs):
+        crates = selected_crates(request)
+        if not crates:
+            messages.error(request, 'Bitte mindestens eine Crate auswählen.')
+            return redirect('crates:list')
+        labels = [(public_url(crate, request), crate.code) for crate in crates]
+        name = f'crate-{crates[0].code}' if len(crates) == 1 else f'crates-{crates[0].code}-{crates[-1].code}'
+        if request.GET.get('format') == 'ql':
+            try:
+                data = labels_ql_raster(labels)
+            except ValueError as error:
+                messages.error(request, str(error))
+                return redirect('crates:list')
+            response = HttpResponse(data, content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{name}-ql700.bin"'
+        else:
+            response = HttpResponse(labels_pdf(labels), content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="{name}-labels.pdf"'
         return response
 
 

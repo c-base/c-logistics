@@ -39,6 +39,16 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - Abschneiden: kein eigener Befehl nötig, das regelt der Druckertreiber. In der
   CUPS-Warteschlange des QL-700 heißen die Optionen `BrCutLabel` (alle n
   Etiketten schneiden) und `BrCutAtEnd` (am Ende des Auftrags schneiden).
+- Mehrere Labels auf einmal: in der Liste Crates anhaken, dann
+  - **„Labels PDF“** – ein PDF mit einer Seite pro Label (`/labels/?c=…`).
+    Im PDF steht kein Schneidbefehl; der Druckertreiber schneidet nach jeder
+    Seite (CUPS: `-o BrCutLabel=1`).
+  - **„Labels QL-700“** – eine Druckdatei in Brothers Rasterformat
+    (`/labels/?c=…&format=ql`), die den Schneidbefehl nach jedem Label selbst
+    enthält. Sie geht ohne Treiber roh an den Drucker:
+    `lp -d Brother_QL-700 -o raw crates-0001-0003-ql700.bin` oder direkt
+    `cat crates-0001-0003-ql700.bin > /dev/usb/lp0`. Nur für 62-mm- und
+    29-mm-Endlosband.
 - `PUBLIC_BASE_URL` (Umgebungsvariable) legt die Adresse fest, die in QR-Code
   und NFC-Tag steht. Sie muss feststehen, bevor Labels gedruckt werden.
 - `LABEL_WIDTH_PX` ist die Druckbreite der Rolle in Pixeln und damit die

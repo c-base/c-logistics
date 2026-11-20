@@ -8,6 +8,10 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       `PUBLIC_BASE_URL` in `.env` und `.env.example` eingetragen. Sie steht in
       jedem QR-Code und NFC-Tag und lässt sich danach nicht mehr ändern, ohne alle
       Labels neu zu drucken.
+- [ ] **Druckdatei „Labels QL-700“ am Drucker testen**: Die Rasterdatei mit
+      Schneidbefehl ist nach Brothers Befehlsreferenz und dem Quelltext von
+      brother_ql gebaut, aber noch nie an einen Drucker gegangen. Mit zwei, drei
+      Labels prüfen: Druckbild seitenrichtig und mittig, Schnitt nach jedem Label.
 - [ ] **Testdruck auf dem Brother QL-700** (62 mm endlos): passende `PageSize`
       der CUPS-Warteschlange finden (`62X1` … `62X4`), Schnitt prüfen, QR-Code
       aus üblichem Abstand mit Android scannen.

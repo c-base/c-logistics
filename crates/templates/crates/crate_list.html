@@ -22,8 +22,8 @@
 <form method="get" action="{% url 'crates:cards' %}" class="crate-select">
 {% for crate in object_list %}
   <div class="crate-row mb-2">
-    <label class="pick" title="für den Kartendruck auswählen">
-      <input type="checkbox" name="c" value="{{ crate.code }}" aria-label="{{ crate.code }} {{ crate.name }} für den Kartendruck auswählen">
+    <label class="pick" title="zum Drucken auswählen">
+      <input type="checkbox" name="c" value="{{ crate.code }}" aria-label="{{ crate.code }} {{ crate.name }} zum Drucken auswählen">
     </label>
     <a class="card transparent" href="{{ crate.get_absolute_url }}">
       <div class="card-body">
@@ -45,7 +45,9 @@
 {% if object_list %}
   <div class="print-bar">
     <label class="form-check mb-0"><input class="form-check-input" type="checkbox" id="pick-all"> <span class="form-check-label">alle</span></label>
-    <span class="muted flex-grow-1" id="pick-count">Crates für den Kartendruck auswählen</span>
+    <span class="muted flex-grow-1" id="pick-count">Crates zum Drucken auswählen</span>
+    <button class="btn btn-secondary" name="format" value="pdf" formaction="{% url 'crates:labels' %}" title="PDF, eine Seite pro Label – der Druckertreiber schneidet nach jeder Seite">Labels PDF</button>
+    <button class="btn btn-secondary" name="format" value="ql" formaction="{% url 'crates:labels' %}" title="Druckdatei für den Brother QL-700 mit Schneidbefehl nach jedem Label">Labels QL-700</button>
     <button class="btn btn-secondary" name="format" value="a5" title="2 Karten pro A4-Blatt">Karten A5</button>
     <button class="btn btn-secondary" name="format" value="a6" title="4 Karten pro A4-Blatt">Karten A6</button>
   </div>
@@ -59,7 +61,7 @@
     if (!all) return;
     function update() {
       var n = form.querySelectorAll('input[name=c]:checked').length;
-      count.textContent = n ? n + (n === 1 ? ' Crate' : ' Crates') + ' ausgewählt' : 'Crates für den Kartendruck auswählen';
+      count.textContent = n ? n + (n === 1 ? ' Crate' : ' Crates') + ' ausgewählt' : 'Crates zum Drucken auswählen';
       all.checked = n === boxes.length;
       form.querySelectorAll('button[name=format]').forEach(function (button) { button.disabled = !n; });
     }

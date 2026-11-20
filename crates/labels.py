@@ -9,7 +9,7 @@ from pathlib import Path
 
 import qrcode
 from django.conf import settings
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 LABEL_DPI = 300
 TAPE_WIDTH_MM = 62  # Brother-DK-Endlosrolle; bedruckbar sind davon 696 Pixel (ca. 59 mm)
@@ -146,12 +146,80 @@ def label_png(url, code, font=None):
     return buffer.getvalue()
 
 
-def label_pdf(url, code, font=None):
-    """Das Label als einseitiges PDF: 62 mm breit, so hoch wie das Etikett lang ist."""
-    label = render_label(url, code, font=font)
+def _pdf_page(label):
     tape_px = max(label.width, round(TAPE_WIDTH_MM / 25.4 * LABEL_DPI))
     page = Image.new('1', (tape_px, label.height), 1)
     page.paste(label, ((tape_px - label.width) // 2, 0))
+    return page
+
+
+def labels_pdf(labels, font=None):
+    """Mehrere Labels als PDF, eine Seite pro Label: 62 mm breit, so hoch wie das Etikett lang ist.
+
+    `labels` ist eine Liste von (url, code). Im PDF selbst steht kein
+    Schneidbefehl; der Druckertreiber schneidet nach jeder Seite (CUPS:
+    BrCutLabel=1).
+    """
+    pages = [_pdf_page(render_label(url, code, font=font)) for url, code in labels]
+    codes = ', '.join(code for _, code in labels)
     buffer = io.BytesIO()
-    page.save(buffer, format='PDF', resolution=LABEL_DPI, title=f'c-base cargo crate {code}')
+    pages[0].save(
+        buffer, format='PDF', resolution=LABEL_DPI, title=f'c-base cargo crate {codes}',
+        save_all=True, append_images=pages[1:],
+    )
     return buffer.getvalue()
+
+
+def label_pdf(url, code, font=None):
+    """Das Label als einseitiges PDF."""
+    return labels_pdf([(url, code)], font=font)
+
+
+# --- Brother-QL-Rasterdaten -------------------------------------------------
+# Druckdatei für den QL-700 (und baugleiche QL-Drucker mit 720 Punkten
+# Druckkopfbreite), die ohne Treiber roh an den Drucker geht und den
+# Schneidbefehl selbst enthält. Aufbau nach Brothers „Raster Command Reference“
+# (QL-500/550/560/570/580N/650TD/700/1050/1060N); die Befehlsfolge entspricht
+# der des verbreiteten Werkzeugs brother_ql für Modell QL-700, Rolle „62“,
+# nur ohne dessen Statusabfrage.
+
+QL_HEAD_PX = 720  # Druckkopf: 90 Bytes je Rasterzeile
+# Druckbreite in Pixeln -> (Bandbreite in mm, Abstand vom rechten Rand des Druckkopfs)
+QL_ENDLESS_TAPES = {696: (62, 12), 306: (29, 6)}
+QL_FEED_MARGIN = 35  # Vorschub vor und nach jedem Label in Punkten (3 mm), Vorgabe für Endlosband
+
+
+def labels_ql_raster(labels, font=None):
+    """Mehrere Labels als Brother-QL-Rasterdatei mit Schnitt nach jedem Label.
+
+    `labels` ist eine Liste von (url, code). Die Datei wird unverändert an den
+    Drucker geschickt, z. B. `lp -d Brother_QL-700 -o raw labels.bin`.
+    """
+    data = bytearray(b'\x00' * 200)  # angefangene Befehle verwerfen
+    data += b'\x1b\x40'               # ESC @  Drucker zurücksetzen
+    for index, (url, code) in enumerate(labels):
+        label = render_label(url, code, font=font)
+        if label.width not in QL_ENDLESS_TAPES:
+            raise ValueError(f'Keine QL-Rolle mit {label.width} Pixeln Druckbreite bekannt (LABEL_WIDTH_PX).')
+        tape_mm, offset_right = QL_ENDLESS_TAPES[label.width]
+        # ESC i z: Medium. 0xCE = Typ, Breite und Länge gültig, Drucker soll sie prüfen,
+        # Qualität vor Geschwindigkeit; 0x0A = Endlosband, Länge 0; danach
+        # Zeilenzahl und „erste Seite?“.
+        data += b'\x1b\x69\x7a' + bytes([0xCE, 0x0A, tape_mm, 0])
+        data += label.height.to_bytes(4, 'little') + bytes([0 if index == 0 else 1, 0])
+        data += b'\x1b\x69\x4d\x40'  # ESC i M: automatisch schneiden
+        data += b'\x1b\x69\x41\x01'  # ESC i A: nach jedem Label
+        data += b'\x1b\x69\x4b\x08'  # ESC i K: auch nach dem letzten schneiden
+        data += b'\x1b\x69\x64' + QL_FEED_MARGIN.to_bytes(2, 'little')  # ESC i d: Vorschub
+        # Der Drucker erwartet die Zeile von rechts nach links; 1 = schwarz.
+        line = Image.new('1', (QL_HEAD_PX, label.height), 1)
+        mirrored = label.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        line.paste(mirrored, (QL_HEAD_PX - label.width - offset_right, 0))
+        raster = ImageOps.invert(line.convert('L')).convert('1').tobytes()
+        row_bytes = QL_HEAD_PX // 8
+        for row in range(label.height):
+            data += b'\x67\x00' + bytes([row_bytes]) + raster[row * row_bytes:(row + 1) * row_bytes]
+        # SUB: drucken und vorschieben – nach jedem Label, damit es einzeln
+        # abgeschnitten herauskommt.
+        data += b'\x1a'
+    return bytes(data)
