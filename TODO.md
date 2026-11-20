@@ -4,9 +4,10 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
 
 ## P1 – vor dem ersten gedruckten Label
 
-- [ ] **Endgültige Adresse festlegen** und als `PUBLIC_BASE_URL` setzen. Sie steht
-      in jedem QR-Code und NFC-Tag und lässt sich danach nicht mehr ändern, ohne
-      alle Labels neu zu drucken.
+- [x] **Endgültige Adresse festlegen**: `https://crates.c-base.org`, als
+      `PUBLIC_BASE_URL` in `.env` und `.env.example` eingetragen. Sie steht in
+      jedem QR-Code und NFC-Tag und lässt sich danach nicht mehr ändern, ohne alle
+      Labels neu zu drucken.
 - [ ] **Testdruck auf dem Brother QL-700** (62 mm endlos): passende `PageSize`
       der CUPS-Warteschlange finden (`62X1` … `62X4`), Schnitt prüfen, QR-Code
       aus üblichem Abstand mit Android scannen.
@@ -16,14 +17,22 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
 - [ ] **OIDC einrichten**: Issuer-URL, Client-ID und Client-Secret besorgen,
       Redirect-URI `<Adresse>/accounts/oidc/callback/` beim Provider eintragen,
       Anmeldung gegen den echten Provider testen (bisher nur simuliert).
-- [ ] **Deployment**: Zielrechner festlegen, HTTPS, App-Server (z. B. gunicorn)
-      hinter Reverse Proxy, statische Dateien ausliefern (`collectstatic`).
-- [ ] **Produktions-Einstellungen**: `DJANGO_DEBUG=0`, eigenes
-      `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, sichere Cookies / CSRF hinter
-      dem Proxy (`manage.py check --deploy`).
-- [ ] **Datensicherung** für `db.sqlite3` (oder Wechsel auf PostgreSQL).
+- [ ] **Container zum ersten Mal bauen und starten** (`docker compose up -d
+      --build` bzw. `podman-compose`): Dockerfile und Compose-Dateien sind
+      geschrieben, aber noch nie gebaut worden – auf dem Entwicklungsrechner
+      gibt es weder Docker noch Podman. Auch die Postgres-Variante ist ungetestet.
+- [ ] **Zielrechner und Reverse Proxy**: wo läuft der Container, wer macht HTTPS
+      für `crates.c-base.org`? Proxy auf `127.0.0.1:8000`, `Host` und
+      `X-Forwarded-Proto` durchreichen.
+- [ ] **`.env` auf dem Zielrechner**: neues `DJANGO_SECRET_KEY`,
+      `DJANGO_ALLOWED_HOSTS=crates.c-base.org`, OIDC-Daten.
+- [ ] **Datensicherung** einrichten: Volume `data` (SQLite-Datei und Fotos),
+      bei Postgres zusätzlich die Datenbank.
+- [ ] **Upload-Grenze am Reverse Proxy** anheben (nginx: `client_max_body_size`,
+      Standard 1 MB) – Handyfotos haben 3–12 MB, die App nimmt bis 30 MB je Bild.
 - [ ] **Auf echtem Android-Gerät testen** (Chrome): Scan → Login → Crate,
-      Formulare, aufklappbare Navigation. Bisher nur per Screenshot in
+      Formulare, aufklappbare Navigation, Foto aufnehmen und hochladen
+      (öffnet „Foto aufnehmen“ wirklich die Kamera?). Bisher nur per Screenshot in
       Handybreite geprüft; das Aufklappen des Menüs ist ungetestet.
 
 ## P2 – fachliche Entscheidungen

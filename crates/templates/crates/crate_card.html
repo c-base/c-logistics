@@ -1,0 +1,140 @@
+{% load static %}<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if cards|length == 1 %}Karte {{ cards.0.crate.code }} · {{ cards.0.crate.name }}{% else %}{{ cards|length }} Karten{% endif %}</title>
+  <link rel="icon" href="{% static 'crates/logo.png' %}">
+  <link href="{% static 'crates/card.css' %}" rel="stylesheet">
+  {# A5: zwei Karten auf A4 hoch. A6: vier Karten auf A4 quer. #}
+  <style>@page { size: A4 {% if format == 'a6' %}landscape{% else %}portrait{% endif %}; margin: 0; }</style>
+</head>
+<body class="{{ format }}">
+<nav class="toolbar">
+  <a href="{{ back_url }}">← zurück</a>
+  <span class="formats">
+    {% for key, label in formats %}
+    <a href="?{% if selection %}{{ selection }}&amp;{% endif %}format={{ key }}"{% if key == format %} class="active"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </span>
+  <button type="button" onclick="window.print()">Drucken</button>
+  <span class="hint">{{ cards|length }} Karte{{ cards|length|pluralize:"n" }} auf {{ sheets|length }} Blatt DIN A4 {% if format == 'a6' %}quer{% else %}hoch{% endif %} ({{ per_sheet }} pro Blatt). In 100 % drucken, nicht „an Seite anpassen“, dann an den gestrichelten Linien schneiden.</span>
+</nav>
+{% for sheet in sheets %}
+<div class="sheet">
+  {% for card in sheet %}{% with crate=card.crate photos=card.photos %}
+  <article class="card{% if not photos %} no-photos{% endif %}">
+    <section class="col fit">
+      <img class="label" src="{% url 'crates:label' crate.code %}" alt="QR-Code, c-base cargo crate {{ crate.code }}">
+      <h1>{{ crate.name }}</h1>
+      <dl>
+        <dt>Verantwortlich</dt><dd>{{ crate.responsible.all|join:", "|default:"–" }}</dd>
+        {% if crate.location %}<dt>Lagerort</dt><dd>{{ crate.location }}</dd>{% endif %}
+        <dt>Größe</dt><dd>{{ crate.get_size_display }}{% if crate.height_mm %}, {{ crate.height_mm }} mm hoch{% endif %}{% if crate.color %}, {{ crate.color }}{% endif %}</dd>
+      </dl>
+      {% if crate.description %}<p class="description">{{ crate.description|linebreaksbr }}</p>{% endif %}
+      {% if photos %}{% include "crates/_card_items.html" %}{% endif %}
+      <footer>{{ card.public_url }} · Stand {% now "d.m.Y" %}</footer>
+    </section>
+    {% if photos %}
+    <section class="col photos n{{ photos|length }}">
+      {% for photo in photos %}<img src="{% url 'crates:photo' crate.code photo.pk %}" alt="">{% endfor %}
+    </section>
+    {% else %}
+    <section class="col fit">{% include "crates/_card_items.html" %}</section>
+    {% endif %}
+  </article>
+  {% endwith %}{% endfor %}
+</div>
+{% endfor %}
+<script>
+  // Passt der Text nicht auf die Karte, wird die Schrift schrittweise kleiner.
+  window.addEventListener('load', function () {
+    document.querySelectorAll('.card').forEach(fitCard);
+  });
+
+  function fitCard(card) {
+    var size = parseFloat(getComputedStyle(card).fontSize);
+    var min = size * 0.55;
+    function overflows() {
+      return Array.prototype.some.call(card.querySelectorAll('.fit'), function (col) {
+        return col.scrollHeight > col.clientHeight + 1;
+      });
+    }
+    while (overflows() && size > min) {
+      size -= 0.5;
+      card.style.fontSize = size + 'px';
+    }
+    layoutPhotos(card.querySelector('.photos'));
+  }
+
+  // Ordnet die Fotos unbeschnitten an: probiert alle Aufteilungen in Zeilen und
+  // in Spalten durch und nimmt die, bei der die Bilder zusammen am größten und ähnlich groß werden.
+  function layoutPhotos(box) {
+    if (!box) return;
+    var images = Array.prototype.filter.call(box.querySelectorAll('img'), function (img) {
+      return img.naturalWidth > 0;
+    });
+    if (!images.length) return;
+    var W = box.clientWidth, H = box.clientHeight;
+    var gap = parseFloat(getComputedStyle(box).rowGap) || 0;
+
+    function splits(n) {  // alle Zerlegungen von n Bildern in aufeinanderfolgende Gruppen
+      if (n === 0) return [[]];
+      var result = [];
+      for (var first = 1; first <= n; first++) {
+        splits(n - first).forEach(function (rest) { result.push([first].concat(rest)); });
+      }
+      return result;
+    }
+    // Rechnet in Zeilen der Breite `main`; für Spalten werden die Achsen vertauscht.
+    function plan(groups, main, cross, ratios) {
+      var index = 0, sizes = [], used = 0;
+      groups.forEach(function (count) {
+        var sum = 0;
+        for (var i = 0; i < count; i++) sum += ratios[index + i];
+        var height = (main - gap * (count - 1)) / sum;
+        sizes.push({count: count, height: height});
+        used += height;
+        index += count;
+      });
+      var room = cross - gap * (groups.length - 1);
+      var scale = Math.min(1, room / used);
+      var area = 0;
+      index = 0;
+      sizes.forEach(function (group) {
+        group.height *= scale;
+        // Wurzel der Fläche: bevorzugt ausgewogene Größen statt eines Riesen neben Winzlingen
+        for (var i = 0; i < group.count; i++) area += group.height * Math.sqrt(ratios[index + i]);
+        index += group.count;
+      });
+      return {groups: sizes, area: area};
+    }
+    var wide = images.map(function (img) { return img.naturalWidth / img.naturalHeight; });
+    var tall = wide.map(function (ratio) { return 1 / ratio; });
+    var best = null;
+    splits(images.length).forEach(function (groups) {
+      [[false, plan(groups, W, H, wide)], [true, plan(groups, H, W, tall)]].forEach(function (pair) {
+        if (!best || pair[1].area > best.area) best = {columns: pair[0], groups: pair[1].groups, area: pair[1].area};
+      });
+    });
+
+    box.textContent = '';
+    box.className = 'col photos arranged' + (best.columns ? ' columns' : '');
+    var index = 0;
+    best.groups.forEach(function (group) {
+      var line = document.createElement('div');
+      for (var i = 0; i < group.count; i++, index++) {
+        var img = images[index];
+        var width = best.columns ? group.height : group.height * wide[index];
+        var height = best.columns ? group.height * tall[index] : group.height;
+        img.style.width = width + 'px';
+        img.style.height = height + 'px';
+        line.appendChild(img);
+      }
+      box.appendChild(line);
+    });
+  }
+</script>
+</body>
+</html>

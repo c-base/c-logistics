@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Crate, Item, Location
+from .models import Crate, Item, Location, Photo
 
 
 class ItemInline(admin.TabularInline):
@@ -19,3 +19,9 @@ class CrateAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Location)
+
+
+@admin.register(Photo)
+class PhotoAdmin(admin.ModelAdmin):
+    list_display = ['__str__', 'crate', 'uploaded_by', 'created_at']
+    readonly_fields = ['image', 'thumbnail', 'uploaded_by']

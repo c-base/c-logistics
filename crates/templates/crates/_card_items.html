@@ -1,0 +1,12 @@
+<div class="items">
+  <h2>Inhalt</h2>
+  {% if crate.items.all %}
+  <ul>
+    {% for item in crate.items.all %}
+    <li><span class="qty">{{ item.quantity }} ×</span> <span>{{ item.name }}{% if item.note %} <small>{{ item.note }}</small>{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">Keine Positionen eingetragen.</p>
+  {% endif %}
+</div>

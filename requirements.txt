@@ -3,3 +3,7 @@ pillow
 qrcode
 authlib
 requests
+# Betrieb im Container
+gunicorn
+whitenoise
+psycopg[binary]

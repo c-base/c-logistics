@@ -55,6 +55,53 @@
   </div>
 </form>
 
+<h2 id="fotos">Fotos</h2>
+<div class="card transparent">
+  <div class="card-body">
+    {% if crate.photos.all %}
+    <div class="photos">
+      {% for photo in crate.photos.all %}
+      <figure>
+        <a href="{% url 'crates:photo' crate.code photo.pk %}"><img src="{% url 'crates:photo-thumbnail' crate.code photo.pk %}" loading="lazy" alt="Foto vom Inhalt, {{ photo.created_at|date:"SHORT_DATE_FORMAT" }}"></a>
+        <figcaption>
+          <span class="muted">{{ photo.created_at|date:"SHORT_DATE_FORMAT" }}{% if photo.uploaded_by %} · {{ photo.uploaded_by }}{% endif %}</span>
+          <form method="post" action="{% url 'crates:photo-delete' crate.code photo.pk %}" onsubmit="return confirm('Foto löschen?')">
+            {% csrf_token %}<button class="btn btn-link">löschen</button>
+          </form>
+        </figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">Noch kein Foto vom Inhalt.</p>
+    {% endif %}
+    <form method="post" action="{% url 'crates:photo-upload' crate.code %}" enctype="multipart/form-data" class="photo-upload">
+      {% csrf_token %}
+      <div class="actions">
+        {# capture öffnet auf dem Telefon direkt die Rückkamera; am Rechner ist es eine normale Dateiauswahl #}
+        <label class="btn btn-primary">Foto aufnehmen
+          <input type="file" name="images" accept="image/*" capture="environment" class="visually-hidden">
+        </label>
+        <label class="btn btn-secondary">Bilder auswählen
+          <input type="file" name="images" accept="image/*" multiple class="visually-hidden">
+        </label>
+      </div>
+      <p class="muted mt-2 mb-0 photo-status" hidden>Lade hoch …</p>
+    </form>
+  </div>
+</div>
+<script>
+  // Hochladen, sobald ein Bild aufgenommen oder ausgewählt ist – ohne weiteren Knopf.
+  document.querySelectorAll('.photo-upload input[type=file]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (!input.files.length) return;
+      var form = input.form;
+      form.querySelector('.photo-status').hidden = false;
+      form.submit();
+    });
+  });
+</script>
+
 <h2>Label &amp; NFC-Tag</h2>
 <div class="card transparent">
   <div class="card-body d-flex flex-wrap gap-3 align-items-start">
@@ -68,6 +115,16 @@
         <a class="btn btn-secondary" href="{% url 'crates:label-pdf' crate.code %}?download=1">Label als PDF</a>
         <a class="btn btn-secondary" href="{% url 'crates:label' crate.code %}?download=1">Label als PNG</a>
       </div>
+    </div>
+  </div>
+</div>
+<h2>Karte zum Ausdrucken</h2>
+<div class="card transparent">
+  <div class="card-body">
+    <p>Alle Angaben, der Inhalt und bis zu vier Fotos auf einer Karte – zum Drucken auf DIN A4 und Ausschneiden.</p>
+    <div class="actions">
+      <a class="btn btn-secondary" href="{% url 'crates:card' crate.code %}?format=a5">Karte DIN A5</a>
+      <a class="btn btn-secondary" href="{% url 'crates:card' crate.code %}?format=a6">Karte DIN A6</a>
     </div>
   </div>
 </div>

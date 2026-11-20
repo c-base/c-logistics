@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,16 +42,15 @@ def load_env_file(path):
 load_env_file(BASE_DIR / '.env')
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-$r4hz4rl3=j$x5$o1+)tucmf0nj_a-2_&isw+d(c&4%&b#pfrf')
-
-# SECURITY WARNING: don't run with debug turned on in production!
+# 1 = Entwicklung (Fehlerseiten mit Details), 0 = Betrieb
 DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+_DEV_SECRET_KEY = 'django-insecure-$r4hz4rl3=j$x5$o1+)tucmf0nj_a-2_&isw+d(c&4%&b#pfrf'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or _DEV_SECRET_KEY
+if not DEBUG and SECRET_KEY in (_DEV_SECRET_KEY, 'bitte-ersetzen'):
+    raise ImproperlyConfigured('Im Betrieb (DJANGO_DEBUG=0) muss DJANGO_SECRET_KEY gesetzt sein.')
+
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if host.strip()]
 
 
 # Application definition
@@ -66,6 +68,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # liefert die statischen Dateien aus, damit es keinen zweiten Webserver braucht
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -97,12 +101,40 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+def database_config():
+    """SQLite (Standard) oder Postgres, je nach DATABASE_URL.
+
+    DATABASE_URL leer:  SQLite-Datei unter DJANGO_SQLITE_PATH (Standard: db.sqlite3 im Projektordner)
+    DATABASE_URL=postgres://nutzer:passwort@host:5432/datenbank
+    """
+    url = os.environ.get('DATABASE_URL', '').strip()
+    if not url:
+        return {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('DJANGO_SQLITE_PATH') or BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                # Mehrere Prozesse (gunicorn) teilen sich die Datei: WAL lässt Leser
+                # neben einem Schreiber zu, IMMEDIATE vermeidet „database is locked“.
+                'timeout': 20,
+                'transaction_mode': 'IMMEDIATE',
+                'init_command': 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
+            },
+        }
+    parts = urlsplit(url)
+    if parts.scheme not in ('postgres', 'postgresql'):
+        raise ImproperlyConfigured('DATABASE_URL muss mit postgres:// beginnen oder leer sein (dann SQLite).')
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': unquote(parts.path.lstrip('/')),
+        'USER': unquote(parts.username or ''),
+        'PASSWORD': unquote(parts.password or ''),
+        'HOST': parts.hostname or '',
+        'PORT': str(parts.port or ''),
+        'CONN_MAX_AGE': 60,
     }
-}
+
+
+DATABASES = {'default': database_config()}
 
 
 # Password validation
@@ -140,6 +172,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+# Ziel von `collectstatic`; im Container liefert whitenoise von hier aus.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -151,9 +189,20 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'crates:list'
 LOGOUT_REDIRECT_URL = 'login'
 
-# Basis-URL, die in NFC-Tags und QR-Codes geschrieben wird, z. B. https://crates.example.org
+# Basis-URL, die in NFC-Tags und QR-Codes geschrieben wird, https://crates.c-base.org
 # Gedruckte Labels sind dauerhaft – diese Adresse darf sich später nicht mehr ändern.
 PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', '').rstrip('/')
+
+# Betrieb hinter einem Reverse Proxy, der HTTPS macht: Der Proxy meldet das
+# ursprüngliche Protokoll in X-Forwarded-Proto. Cookies gehen nur über HTTPS,
+# sobald die öffentliche Adresse eine https-Adresse ist; zum Ausprobieren des
+# Containers über http://localhost lässt sich das mit DJANGO_SECURE_COOKIES=0 abschalten.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    if PUBLIC_BASE_URL:
+        CSRF_TRUSTED_ORIGINS = [PUBLIC_BASE_URL]
+    _secure_cookies = os.environ.get('DJANGO_SECURE_COOKIES') or ('1' if PUBLIC_BASE_URL.startswith('https://') else '0')
+    SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = _secure_cookies == '1'
 
 # Druckbreite der Rolle in Pixeln bei 300 dpi = Breite des Labels (Brother QL: 62-mm-Rolle = 696, 29 mm = 306).
 LABEL_WIDTH_PX = int(os.environ.get('LABEL_WIDTH_PX', '696'))
@@ -169,6 +218,10 @@ OIDC_PROVIDER_NAME = os.environ.get('OIDC_PROVIDER_NAME', 'c-base-account')
 # Schrift auf dem Label: 'baijamjuree' (Nummer in Orbitron), 'orbitron' oder
 # 'anybody' (siehe crates/labels.py).
 LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')
+
+# Fotos vom Inhalt der Crates. Sie werden nicht direkt vom Webserver, sondern
+# über eine Ansicht mit Anmeldung ausgeliefert (crates.views.PhotoFileView).
+MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT') or BASE_DIR / 'media')
 
 # Projektweite statische Dateien: das c-base-Theme unter static/c-base-bootstrap/
 STATICFILES_DIRS = [BASE_DIR / 'static']

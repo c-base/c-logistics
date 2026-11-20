@@ -58,26 +58,26 @@ class LoginFlowTests(TestCase):
 
     @OIDC
     def test_sso_button_is_offered_above_the_local_password_form(self):
-        response = self.client.get(reverse('login'), {'next': '/c/001A/'})
-        self.assertContains(response, '/accounts/oidc/login/?next=/c/001A/')
+        response = self.client.get(reverse('login'), {'next': '/001A'})
+        self.assertContains(response, '/accounts/oidc/login/?next=/001A')
         self.assertContains(response, 'mit c-base-account anmelden')
         self.assertContains(response, 'name="password"')
 
     @OIDC
     def test_local_account_can_still_log_in_with_password(self):
         Member.objects.create_user('lokal', password='geheim-123')
-        response = self.client.post(reverse('login'), {'username': 'lokal', 'password': 'geheim-123', 'next': '/c/0000/'})
-        self.assertRedirects(response, '/c/0000/')
+        response = self.client.post(reverse('login'), {'username': 'lokal', 'password': 'geheim-123', 'next': '/0000'})
+        self.assertRedirects(response, '/0000')
 
     @OIDC
     def test_scan_login_returns_to_crate(self):
         client = fake_client()
         with mock.patch('members.oidc.get_client', return_value=client):
-            response = self.client.get(reverse('oidc-login'), {'next': '/c/001A/'})
+            response = self.client.get(reverse('oidc-login'), {'next': '/001A'})
             self.assertEqual(response['Location'], 'https://idp.example.org/auth')
             self.assertEqual(client.authorize_redirect.call_args.args[1], 'http://testserver/accounts/oidc/callback/')
             response = self.client.get(reverse('oidc-callback'))
-        self.assertRedirects(response, '/c/001A/', fetch_redirect_response=False)
+        self.assertRedirects(response, '/001A', fetch_redirect_response=False)
         self.assertEqual(self.client.get(reverse('crates:list')).status_code, 200)
 
     @OIDC

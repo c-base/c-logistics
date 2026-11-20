@@ -9,7 +9,11 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - `0000` ist `/dev/null`, die Mülltonne. Sie wird bei der Einrichtung angelegt;
   neue Crates beginnen bei `0001`.
 - NFC-Tag und QR-Code auf dem gedruckten Label zeigen beide auf dieselbe URL:
-  `https://<host>/c/<ID>/` – die Crate-ID ist der letzte Teil der URL.
+  `https://crates.c-base.org/<ID>` – die Crate-ID ist der letzte Teil der URL.
+  Die frühere Form `/c/<ID>/` leitet dorthin um.
+- Weil die ID direkt hinter dem Hostnamen steht, gehört jeder Pfad aus höchstens
+  vier Hex-Zeichen einer Crate. Neue Seiten der App dürfen deshalb nicht z. B.
+  `/add`, `/feed` oder `/cafe` heißen.
 - Gescannt wird mit Android-Smartphones; die URL öffnet die Crate-Seite im Browser.
 - Pro Crate gibt es Inhalt (Positionen mit Menge) und einen oder mehrere
   verantwortliche Member.
@@ -30,7 +34,7 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   `?font=…` an der Label-URL. Alle drei Schriften liegen mit ihrer SIL Open
   Font License in `crates/fonts/`.
 - Die App liefert das Label in Druckauflösung (300 dpi) als PNG unter
-  `/c/<ID>/label.png` und als einseitiges PDF unter `/c/<ID>/label.pdf`. Von
+  `/<ID>/label.png` und als einseitiges PDF unter `/<ID>/label.pdf`. Von
   welchem Gerät gedruckt wird, ist bewusst offen.
 - Abschneiden: kein eigener Befehl nötig, das regelt der Druckertreiber. In der
   CUPS-Warteschlange des QL-700 heißen die Optionen `BrCutLabel` (alle n
@@ -39,6 +43,44 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   und NFC-Tag steht. Sie muss feststehen, bevor Labels gedruckt werden.
 - `LABEL_WIDTH_PX` ist die Druckbreite der Rolle in Pixeln und damit die
   Breite des Labels (62 mm = 696, 29 mm = 306); der Inhalt skaliert mit.
+
+## Karte zum Ausdrucken
+
+Neben dem kleinen Label gibt es unter `/<ID>/card/` eine Karte mit allen
+Angaben für den Farblaser: QR-Code und ID (das Label, groß), Bezeichnung,
+Verantwortliche, Lagerort, Größe, Beschreibung, Inhalt und die bis zu vier
+neuesten Fotos.
+
+- Format: DIN A5 quer, zwei Karten pro A4-Blatt im Hochformat, oder mit
+  `?format=a6` DIN A6 quer, vier Karten pro A4-Blatt im Querformat. Gedruckt
+  wird über den Druckdialog des Browsers in 100 %, danach an den
+  gestrichelten Linien schneiden.
+- Mehrere Karten zusammen: in der Liste Crates anhaken und „Karten A5“ oder
+  „Karten A6“ wählen (`/cards/?c=0001&c=0002&format=a6`). Die Karten füllen
+  die Blätter der Reihe nach, damit kein Platz leer bleibt.
+- Fotos werden nicht beschnitten; die Seite ordnet sie so an, dass sie
+  möglichst groß werden.
+- Passt der Text nicht auf die Karte, verkleinert die Seite die Schrift
+  schrittweise.
+- Anders als das Label veraltet die Karte, wenn sich der Inhalt ändert;
+  deshalb steht unten das Druckdatum.
+
+## Fotos vom Inhalt
+
+Auf der Crate-Seite lassen sich Fotos vom Inhalt hochladen – gedacht für das
+Smartphone, mit dem man ohnehin gerade den Tag gescannt hat.
+
+- „Foto aufnehmen“ öffnet auf dem Telefon direkt die Rückkamera, „Bilder
+  auswählen“ die Galerie (auch mehrere Bilder auf einmal). Hochgeladen wird,
+  sobald das Bild gewählt ist.
+- Der Server dreht das Bild aufrecht, verkleinert es auf höchstens 1600 px
+  Kantenlänge und speichert es als JPEG, dazu eine Vorschau mit 400 px. Dabei
+  fallen alle Metadaten weg, auch der Aufnahmeort; der Dateiname vom Telefon
+  wird nicht übernommen.
+- Die Dateien liegen unter `media/crates/<ID>/` (Ordner über
+  `DJANGO_MEDIA_ROOT` einstellbar) und werden nur an angemeldete Member
+  ausgeliefert – über die App, nicht direkt vom Webserver.
+- Wird ein Foto oder die Crate gelöscht, verschwinden auch die Dateien.
 
 ## Anmeldung (OAuth2 / OpenID Connect)
 
@@ -91,6 +133,35 @@ cp .env.example .env          # Einstellungen, siehe unten
 ```
 
 Tests: `.venv/bin/python manage.py test`
+
+## Betrieb im Container
+
+Die App läuft als ein Container (gunicorn, statische Dateien über whitenoise)
+und spricht nur HTTP. HTTPS macht ein Reverse Proxy davor, der an
+`127.0.0.1:8000` weiterleitet und `Host` sowie `X-Forwarded-Proto` durchreicht.
+Die Befehle gelten genauso für `podman-compose`.
+
+```sh
+cp .env.example .env     # anpassen: DJANGO_SECRET_KEY, PUBLIC_BASE_URL, OIDC_…
+docker compose up -d --build
+docker compose exec app python manage.py createsuperuser
+```
+
+- **Datenbank:** Standard ist SQLite; die Datei liegt zusammen mit den Fotos
+  im Volume `data` (`/data/db.sqlite3`, `/data/media/`). Für Postgres die
+  zweite Datei dazunehmen und `POSTGRES_PASSWORD` in der `.env` setzen:
+  `docker compose -f compose.yaml -f compose.postgres.yaml up -d --build`
+- **Start:** Der Container bringt die Datenbank bei jedem Start selbst auf
+  Stand (`migrate`).
+- **Update:** `git pull`, dann `docker compose up -d --build`.
+- **Sicherung:** das Volume `data` sichern (bei Postgres zusätzlich `pgdata`
+  bzw. ein `pg_dump`). Für eine Kopie der SQLite-Datei im laufenden Betrieb:
+  `docker compose exec app python -c "import sqlite3; sqlite3.connect('/data/db.sqlite3').backup(sqlite3.connect('/data/backup.sqlite3'))"`
+- **Upload-Grenze:** Der Proxy muss Uploads bis 30 MB durchlassen (nginx:
+  `client_max_body_size 30m;`), sonst scheitern Handyfotos.
+- **Ohne Proxy ausprobieren:** `DJANGO_SECURE_COOKIES=0` und `localhost` in
+  `DJANGO_ALLOWED_HOSTS`, dann geht die Anmeldung auch über
+  `http://localhost:8000`.
 
 ## Einstellungen (.env)
 

@@ -1,5 +1,10 @@
+import uuid
+
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, models, transaction
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.urls import reverse
 
 CODE_DIGITS = 4
@@ -102,3 +107,50 @@ class Item(models.Model):
 
     def __str__(self):
         return f'{self.quantity} × {self.name}'
+
+
+def _photo_path(instance, filename):
+    # Der Dateiname ist zufällig; der Name vom Telefon wird nicht übernommen.
+    return f'crates/{instance.crate.code}/{filename}'
+
+
+class Photo(models.Model):
+    """Ein Foto vom Inhalt. Die Dateien liegen unter MEDIA_ROOT und werden nur angemeldet ausgeliefert."""
+
+    crate = models.ForeignKey(Crate, verbose_name='Cargo Crate', on_delete=models.CASCADE, related_name='photos')
+    image = models.FileField('Bild', upload_to=_photo_path)
+    thumbnail = models.FileField('Vorschau', upload_to=_photo_path)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, verbose_name='Hochgeladen von', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    created_at = models.DateTimeField('Hochgeladen', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Foto'
+        verbose_name_plural = 'Fotos'
+        ordering = ['-created_at', '-pk']
+
+    def __str__(self):
+        return f'Foto {self.pk} von {self.crate.code}'
+
+    @classmethod
+    def create_from_upload(cls, crate, upload, member=None):
+        """Verkleinert den Upload und speichert Bild und Vorschau. Wirft PhotoError bei unbrauchbaren Dateien."""
+        from .photos import process_upload
+
+        image, thumbnail = process_upload(upload)
+        name = uuid.uuid4().hex
+        photo = cls(crate=crate, uploaded_by=member)
+        photo.image.save(f'{name}.jpg', ContentFile(image), save=False)
+        photo.thumbnail.save(f'{name}-klein.jpg', ContentFile(thumbnail), save=False)
+        photo.save()
+        return photo
+
+
+@receiver(post_delete, sender=Photo)
+def _delete_photo_files(sender, instance, **kwargs):
+    # Auch wenn die Crate gelöscht wird, sollen keine Dateien liegen bleiben.
+    for field in (instance.image, instance.thumbnail):
+        if field:
+            field.delete(save=False)

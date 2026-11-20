@@ -1,0 +1,65 @@
+/* Druckkarten: zwei A5-Karten quer auf A4 hoch oder vier A6-Karten quer auf
+   A4 quer (Seitenformat steht im Template). Hell und kontrastreich, damit sie aus der Entfernung lesbar ist. */
+* { box-sizing: border-box; }
+html { background: #333; }
+body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif; color: #000; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; padding: 0.75rem 1rem; background: #060606; color: #999; font: 14px "Lucida Console", "Andale Mono", "Courier New", monospace; }
+.toolbar a { color: #33b5e5; text-decoration: none; }
+.toolbar .formats a { padding: 0.3rem 0.7rem; border: 1px solid #282828; }
+.toolbar .formats a.active { border-color: #33b5e5; color: #fff; }
+.toolbar button { font: inherit; padding: 0.35rem 1rem; background: #2a9fd6; color: #fff; border: 0; border-radius: 3px; cursor: pointer; }
+.toolbar .hint { flex-basis: 100%; }
+
+.sheet { width: 210mm; height: 297mm; margin: 1rem auto; background: #fff; overflow: hidden; box-shadow: 0 0 12px #000;
+         display: flex; flex-wrap: wrap; align-content: flex-start; break-after: page; }
+.sheet:last-child { break-after: auto; }
+.a6 .sheet { width: 297mm; height: 210mm; }
+
+/* A5 quer: halbes A4-Blatt. Schnittlinie unter der oberen Karte. */
+.card { width: 210mm; height: 148.5mm; padding: 9mm; display: flex; gap: 6mm; font-size: 13pt; line-height: 1.3; overflow: hidden; }
+.a5 .card:first-child { border-bottom: 0.3mm dashed #888; }
+/* A6 quer: ein Viertel des A4-Blatts. Schnittlinien in der Blattmitte. */
+.a6 .card { width: 148.5mm; height: 105mm; padding: 7mm; gap: 4mm; font-size: 9.5pt; }
+.a6 .card:nth-child(odd) { border-right: 0.3mm dashed #888; }
+.a6 .card:nth-child(-n+2) { border-bottom: 0.3mm dashed #888; }
+
+.col { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.col.photos { flex: 0.65 1 0; }
+
+.label { display: block; width: 78%; height: auto; flex: none; image-rendering: pixelated; }
+h1 { font-size: 2em; line-height: 1.1; margin: 0.35em 0 0.3em; overflow-wrap: anywhere; }
+h2 { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin: 0 0 0.2em; border-bottom: 0.3mm solid #000; padding-bottom: 0.15em; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.1em 0.8em; }
+dt { color: #555; font-size: 0.8em; padding-top: 0.2em; }
+dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.description { margin: 0.5em 0 0; }
+
+.items { margin-top: 0.7em; }
+.no-photos .items { margin-top: 0; }
+.items ul { list-style: none; margin: 0; padding: 0; }
+.items li { display: flex; gap: 0.5em; padding: 0.12em 0; border-bottom: 0.2mm solid #ccc; break-inside: avoid; }
+.items .qty { flex: none; min-width: 2.6em; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.items small { color: #555; }
+.items .empty { color: #555; margin: 0; }
+
+footer { margin-top: auto; padding-top: 0.6em; font-size: 0.62em; color: #555; overflow-wrap: anywhere; flex: none; }
+
+/* Fotos in der rechten Spalte, unbeschnitten. Die Anordnung rechnet das Skript
+   in crate_card.html aus; ohne Skript stehen sie eingepasst im Raster. */
+.photos { display: grid; gap: 2mm; grid-template-columns: 1fr; grid-auto-rows: 1fr; }
+.photos.n3, .photos.n4 { grid-template-columns: 1fr 1fr; }
+.photos.n3 img:first-child { grid-column: span 2; }
+.photos img { width: 100%; height: 100%; min-height: 0; object-fit: contain; object-position: top right; display: block; }
+.photos.arranged { display: flex; flex-direction: column; align-items: flex-end; }
+.photos.arranged > div { display: flex; flex-direction: row; gap: 2mm; flex: none; }
+.photos.arranged.columns { flex-direction: row; justify-content: flex-end; align-items: flex-start; }
+.photos.arranged.columns > div { flex-direction: column; }
+.photos.arranged img { flex: none; object-fit: fill; }
+
+@media print {
+  html { background: none; }
+  .toolbar { display: none; }
+  .sheet { margin: 0; box-shadow: none; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

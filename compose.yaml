@@ -1,0 +1,25 @@
+# c-logistics mit SQLite. Start:
+#   docker compose up -d --build        (oder: podman-compose up -d --build)
+# Mit Postgres statt SQLite zusätzlich compose.postgres.yaml angeben, siehe dort.
+#
+# Einstellungen kommen aus der Datei .env daneben (Vorlage: .env.example).
+# Der Container spricht nur HTTP; HTTPS macht der Reverse Proxy davor.
+services:
+  app:
+    build: .
+    image: c-logistics
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_DEBUG: "0"
+      # Im Container fest: Datenbank und Fotos liegen im Volume unter /data.
+      DJANGO_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_MEDIA_ROOT: /data/media
+    volumes:
+      - data:/data
+    ports:
+      # Nur lokal erreichbar; der Reverse Proxy leitet hierher weiter.
+      - "${APP_BIND:-127.0.0.1:8000}:8000"
+
+volumes:
+  data:

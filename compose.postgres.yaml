@@ -1,0 +1,26 @@
+# Zusatz für Postgres statt SQLite. Start:
+#   docker compose -f compose.yaml -f compose.postgres.yaml up -d --build
+#   podman-compose -f compose.yaml -f compose.postgres.yaml up -d --build
+#
+# In der .env muss POSTGRES_PASSWORD stehen (nur Buchstaben, Ziffern, - und _,
+# weil es unverändert in die Datenbank-Adresse eingesetzt wird).
+# Die Fotos bleiben im Volume `data`.
+services:
+  app:
+    environment:
+      DATABASE_URL: "postgres://crates:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in .env setzen}@db:5432/crates"
+    depends_on:
+      - db
+
+  db:
+    image: docker.io/library/postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: crates
+      POSTGRES_USER: crates
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in .env setzen}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

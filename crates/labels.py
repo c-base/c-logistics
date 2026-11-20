@@ -106,7 +106,7 @@ def render_label(url, code, tape_px=None, font=None):
     """
     tape_px = tape_px or settings.LABEL_WIDTH_PX
     typeface = _Typeface(font or settings.LABEL_FONT)
-    qr = qrcode.QRCode(border=0, error_correction=qrcode.constants.ERROR_CORRECT_M)
+    qr = qrcode.QRCode(border=0, error_correction=qrcode.constants.ERROR_CORRECT_Q)
     qr.add_data(url)
     qr.make(fit=True)
     modules = qr.modules

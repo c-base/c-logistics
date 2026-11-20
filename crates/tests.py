@@ -1,12 +1,15 @@
 from django.contrib.auth import get_user_model
 import io
+import tempfile
+from pathlib import Path
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from PIL import Image, ImageOps
 from django.urls import reverse
 
 from .labels import FONTS, public_url, render_label
-from .models import Crate, Item, format_code
+from .models import Crate, Item, Photo, format_code
 
 
 # Unabhängig von einer lokalen .env.
@@ -33,7 +36,7 @@ class CrateTests(TestCase):
 
     def test_0000_is_dev_null_and_never_assigned_to_a_new_crate(self):
         self.assertEqual(Crate.objects.get(code='0000').name, '/dev/null')
-        self.assertContains(self.client.get('/c/0000/'), '/dev/null')
+        self.assertContains(self.client.get('/0000'), '/dev/null')
         Crate.objects.all().delete()
         self.assertEqual(Crate.objects.create(name='Erste').code, '0001')
 
@@ -54,7 +57,7 @@ class CrateTests(TestCase):
             Crate.objects.create(name='Zu viel')
 
     def test_scan_url_ends_with_code(self):
-        self.assertEqual(self.crate.get_absolute_url(), f'/c/{self.crate.code}/')
+        self.assertEqual(self.crate.get_absolute_url(), f'/{self.crate.code}')
 
     def test_scan_requires_login_and_returns_to_crate(self):
         self.client.logout()
@@ -63,17 +66,17 @@ class CrateTests(TestCase):
         self.assertRedirects(response, f"{reverse('login')}?next={url}")
 
     def test_detail_shows_content_and_accepts_short_code(self):
-        response = self.client.get('/c/1/')
+        response = self.client.get('/1')
         self.assertContains(response, 'HDMI-Kabel')
         self.assertContains(response, 'alice')
 
     def test_unknown_code_is_404(self):
-        self.assertEqual(self.client.get('/c/0BAD/').status_code, 404)
+        self.assertEqual(self.client.get('/0BAD').status_code, 404)
 
     def test_lowercase_code_opens_crate(self):
         crate = Crate.objects.create(name='Hex', code='00AF')
         crate.responsible.add(self.member)
-        self.assertContains(self.client.get('/c/00af/'), 'Hex')
+        self.assertContains(self.client.get('/00af'), 'Hex')
 
     def test_search_finds_crate_by_code(self):
         response = self.client.get(reverse('crates:list'), {'q': '2'})
@@ -119,7 +122,7 @@ class CrateTests(TestCase):
 
     @override_settings(PUBLIC_BASE_URL='https://crates.example.org')
     def test_public_url_uses_configured_base(self):
-        self.assertEqual(public_url(self.crate), f'https://crates.example.org/c/{self.crate.code}/')
+        self.assertEqual(public_url(self.crate), f'https://crates.example.org/{self.crate.code}')
         self.assertContains(self.client.get(self.crate.get_absolute_url()), public_url(self.crate))
 
     def test_label_is_landscape_png_in_tape_width(self):
@@ -147,17 +150,17 @@ class CrateTests(TestCase):
         self.assertEqual(before, self.client.get(reverse('crates:label', args=[self.crate.code])).content)
 
     def test_label_fits_narrow_tape(self):
-        image = render_label('https://crates.example.org/c/001A/', '001A', tape_px=306)
+        image = render_label('https://crates.example.org/001A', '001A', tape_px=306)
         self.assertEqual(image.width, 306)
 
     def test_label_length_is_the_same_for_every_number(self):
-        sizes = {render_label(f'https://crates.example.org/c/{code}/', code).size for code in ['0000', '1111', 'FFFF', '8B3D']}
+        sizes = {render_label(f'https://crates.example.org/{code}', code).size for code in ['0000', '1111', 'FFFF', '8B3D']}
         self.assertEqual(len(sizes), 1)
 
     def test_every_label_font_fits_the_tape_with_margins(self):
         for font in FONTS:
             with self.subTest(font=font):
-                image = render_label('https://crates.example.org/c/0000/', '0000', font=font)
+                image = render_label('https://crates.example.org/0000', '0000', font=font)
                 left, top, right, bottom = ImageOps.invert(image.convert('L')).getbbox()
                 self.assertEqual(image.width, 696)
                 self.assertGreater(top, 5)
@@ -179,3 +182,213 @@ class CrateTests(TestCase):
         self.assertEqual(face.spec['file'], 'BaiJamjuree-Bold.ttf')
         self.assertEqual(face.code_face.spec['file'], 'Orbitron.ttf')
         self.assertIs(_Typeface('orbitron').code_face.spec, _Typeface('orbitron').spec)
+
+
+def photo_upload(size=(3000, 2000), name='IMG_0001.jpg', orientation=None):
+    image = Image.new('RGB', size, (200, 30, 30))
+    exif = Image.Exif()
+    exif[0x010F] = 'Geheime Kamera'
+    if orientation:
+        exif[0x0112] = orientation
+    buffer = io.BytesIO()
+    image.save(buffer, format='JPEG', exif=exif)
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type='image/jpeg')
+
+
+class PhotoTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.member = get_user_model().objects.create_user('alice', password='pw')
+        cls.crate = Crate.objects.create(name='Kabelkiste')
+
+    def setUp(self):
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        self.media = Path(media.name)
+        settings = override_settings(MEDIA_ROOT=self.media)
+        settings.enable()
+        self.addCleanup(settings.disable)
+        self.client.force_login(self.member)
+        self.upload_url = reverse('crates:photo-upload', args=[self.crate.code])
+
+    def files(self):
+        return [path for path in self.media.rglob('*') if path.is_file()]
+
+    def test_upload_stores_a_shrunk_photo_and_shows_it_on_the_crate(self):
+        response = self.client.post(self.upload_url, {'images': photo_upload()})
+        self.assertRedirects(response, f'/{self.crate.code}#fotos', fetch_redirect_response=False)
+        photo = self.crate.photos.get()
+        self.assertEqual(photo.uploaded_by, self.member)
+        with Image.open(photo.image.path) as image:
+            self.assertEqual(image.size, (1600, 1067))
+        with Image.open(photo.thumbnail.path) as image:
+            self.assertEqual(max(image.size), 400)
+        page = self.client.get(self.crate.get_absolute_url())
+        self.assertContains(page, reverse('crates:photo-thumbnail', args=[self.crate.code, photo.pk]))
+        self.assertContains(page, reverse('crates:photo', args=[self.crate.code, photo.pk]))
+
+    def test_several_photos_in_one_upload(self):
+        self.client.post(self.upload_url, {'images': [photo_upload(name='a.jpg'), photo_upload(name='b.jpg')]})
+        self.assertEqual(self.crate.photos.count(), 2)
+
+    def test_metadata_is_removed_and_the_file_name_is_not_kept(self):
+        self.client.post(self.upload_url, {'images': photo_upload(name='Mein Wohnzimmer.jpg')})
+        photo = self.crate.photos.get()
+        self.assertNotIn('Wohnzimmer', photo.image.name)
+        with Image.open(photo.image.path) as image:
+            self.assertEqual(len(image.getexif()), 0)
+
+    def test_photo_taken_upright_is_stored_upright(self):
+        # Orientierung 6: das Telefon speichert quer und merkt sich die Drehung nur im EXIF.
+        self.client.post(self.upload_url, {'images': photo_upload(size=(800, 600), orientation=6)})
+        with Image.open(self.crate.photos.get().image.path) as image:
+            self.assertEqual(image.size, (600, 800))
+
+    def test_png_with_transparency_becomes_jpeg(self):
+        buffer = io.BytesIO()
+        Image.new('RGBA', (100, 100), (0, 0, 0, 0)).save(buffer, format='PNG')
+        self.client.post(self.upload_url, {'images': SimpleUploadedFile('a.png', buffer.getvalue())})
+        with Image.open(self.crate.photos.get().image.path) as image:
+            self.assertEqual(image.format, 'JPEG')
+            self.assertEqual(image.getpixel((50, 50)), (255, 255, 255))
+
+    def test_file_that_is_no_image_is_rejected_with_a_message(self):
+        upload = SimpleUploadedFile('notizen.jpg', b'kein bild')
+        response = self.client.post(self.upload_url, {'images': upload}, follow=True)
+        self.assertContains(response, 'notizen.jpg')
+        self.assertFalse(Photo.objects.exists())
+        self.assertEqual(self.files(), [])
+
+    def test_upload_without_file_shows_a_message(self):
+        response = self.client.post(self.upload_url, follow=True)
+        self.assertContains(response, 'kein Bild ausgewählt')
+
+    def test_photos_are_only_served_to_logged_in_members(self):
+        self.client.post(self.upload_url, {'images': photo_upload()})
+        photo = self.crate.photos.get()
+        for name in ('crates:photo', 'crates:photo-thumbnail'):
+            response = self.client.get(reverse(name, args=[self.crate.code, photo.pk]))
+            self.assertEqual(response['Content-Type'], 'image/jpeg')
+            Image.open(io.BytesIO(b''.join(response.streaming_content))).verify()
+        self.client.logout()
+        response = self.client.get(reverse('crates:photo', args=[self.crate.code, photo.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response['Location'])
+        self.assertEqual(self.client.post(self.upload_url, {'images': photo_upload()}).status_code, 302)
+        self.assertEqual(self.crate.photos.count(), 1)
+
+    def test_deleting_a_photo_removes_its_files(self):
+        self.client.post(self.upload_url, {'images': photo_upload()})
+        self.assertEqual(len(self.files()), 2)
+        response = self.client.post(reverse('crates:photo-delete', args=[self.crate.code, self.crate.photos.get().pk]))
+        self.assertRedirects(response, f'/{self.crate.code}#fotos', fetch_redirect_response=False)
+        self.assertFalse(Photo.objects.exists())
+        self.assertEqual(self.files(), [])
+
+    def test_deleting_the_crate_removes_its_photo_files(self):
+        self.client.post(self.upload_url, {'images': photo_upload()})
+        self.crate.delete()
+        self.assertEqual(self.files(), [])
+
+    def test_missing_file_is_404(self):
+        self.client.post(self.upload_url, {'images': photo_upload()})
+        photo = self.crate.photos.get()
+        Path(photo.image.path).unlink()
+        self.assertEqual(self.client.get(reverse('crates:photo', args=[self.crate.code, photo.pk])).status_code, 404)
+
+    def test_unknown_crate_is_404(self):
+        self.assertEqual(self.client.post('/0FFF/pics/', {'images': photo_upload()}).status_code, 404)
+
+    def test_card_shows_details_content_and_at_most_four_photos(self):
+        Item.objects.create(crate=self.crate, name='HDMI-Kabel', quantity=4)
+        for _ in range(5):
+            self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
+        response = self.client.get(reverse('crates:card', args=[self.crate.code]))
+        self.assertContains(response, 'Kabelkiste')
+        self.assertContains(response, 'HDMI-Kabel')
+        self.assertContains(response, reverse('crates:label', args=[self.crate.code]))
+        self.assertContains(response, '<body class="a5">')
+        self.assertEqual(len(response.context['cards'][0]['photos']), 4)
+        newest = self.crate.photos.first()
+        self.assertContains(response, reverse('crates:photo', args=[self.crate.code, newest.pk]))
+
+    def test_card_format_can_be_chosen_and_falls_back_to_a5(self):
+        url = reverse('crates:card', args=[self.crate.code])
+        self.assertContains(self.client.get(url, {'format': 'a6'}), '<body class="a6">')
+        self.assertContains(self.client.get(url, {'format': 'a0'}), '<body class="a5">')
+
+    def test_card_requires_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('crates:card', args=[self.crate.code])).status_code, 302)
+
+    def test_a5_prints_on_portrait_a4_and_a6_on_landscape(self):
+        url = reverse('crates:card', args=[self.crate.code])
+        self.assertContains(self.client.get(url), 'size: A4 portrait')
+        self.assertContains(self.client.get(url, {'format': 'a6'}), 'size: A4 landscape')
+
+    def test_several_crates_share_sheets_two_per_a5_and_four_per_a6(self):
+        codes = [self.crate.code] + [Crate.objects.create(name=f'Kiste {n}').code for n in range(4)]
+        url = reverse('crates:cards')
+        a5 = self.client.get(url, {'c': codes, 'format': 'a5'})
+        self.assertEqual([len(sheet) for sheet in a5.context['sheets']], [2, 2, 1])
+        a6 = self.client.get(url, {'c': codes, 'format': 'a6'})
+        self.assertEqual([len(sheet) for sheet in a6.context['sheets']], [4, 1])
+        self.assertContains(a6, 'Kiste 3')
+        self.assertContains(a6, 'class="sheet"', count=2)
+        # der Umschalter behält die Auswahl
+        self.assertContains(a6, f'c={codes[0]}&amp;c={codes[1]}')
+
+    def test_card_sheet_ignores_unknown_codes_and_needs_a_selection(self):
+        url = reverse('crates:cards')
+        response = self.client.get(url, {'c': [self.crate.code.lower(), 'FFFE', 'unsinn']})
+        self.assertEqual(len(response.context['cards']), 1)
+        response = self.client.get(url, follow=True)
+        self.assertRedirects(response, reverse('crates:list'))
+        self.assertContains(response, 'mindestens eine Crate')
+
+    def test_list_offers_selection_for_card_printing(self):
+        response = self.client.get(reverse('crates:list'))
+        self.assertContains(response, f'name="c" value="{self.crate.code}"')
+        self.assertContains(response, reverse('crates:cards'))
+
+    def test_photo_address_and_file_name_carry_the_crate_id(self):
+        self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
+        photo = self.crate.photos.get()
+        response = self.client.get(f'/{self.crate.code}/pic/{photo.pk}.jpg')
+        self.assertEqual(response['Content-Disposition'], f'inline; filename="{self.crate.code}-{photo.pk}.jpg"')
+
+    def test_photo_under_the_wrong_crate_is_404_and_cannot_be_deleted_there(self):
+        self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
+        photo = self.crate.photos.get()
+        other = Crate.objects.create(name='Andere')
+        self.assertEqual(self.client.get(reverse('crates:photo', args=[other.code, photo.pk])).status_code, 404)
+        self.assertEqual(self.client.post(reverse('crates:photo-delete', args=[other.code, photo.pk])).status_code, 404)
+        self.assertTrue(Photo.objects.filter(pk=photo.pk).exists())
+
+    def test_new_pictures_and_cards_have_english_paths(self):
+        self.assertEqual(reverse('crates:create'), '/new/')
+        self.assertEqual(reverse('crates:cards'), '/cards/')
+        self.assertEqual(reverse('crates:photo', args=['10F0', 7]), '/10F0/pic/7.jpg')
+        self.assertEqual(reverse('crates:photo-thumbnail', args=['10F0', 7]), '/10F0/pic/7-thumb.jpg')
+
+
+class AddressTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user('alice'))
+        self.crate = Crate.objects.create(name='Kabelkiste', code='10F0')
+
+    def test_crate_lives_directly_under_the_host_without_trailing_slash(self):
+        self.assertEqual(self.crate.get_absolute_url(), '/10F0')
+        self.assertContains(self.client.get('/10F0'), 'Kabelkiste')
+
+    def test_old_prefix_and_trailing_slash_redirect_to_the_short_address(self):
+        for old in ('/c/10F0/', '/10F0/'):
+            self.assertRedirects(self.client.get(old), '/10F0', status_code=301)
+
+    def test_hex_looking_words_do_not_shadow_fixed_pages(self):
+        for name in ('crates:create', 'crates:cards'):
+            self.assertNotEqual(self.client.get(reverse(name), {'c': '10F0'}).status_code, 404)
+        # ein Wort aus Hex-Zeichen ist dagegen eine Crate-ID
+        self.assertEqual(self.client.get('/cafe').status_code, 404)
+        Crate.objects.create(name='Kaffee', code='CAFE')
+        self.assertContains(self.client.get('/cafe'), 'Kaffee')

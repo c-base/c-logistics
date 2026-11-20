@@ -19,23 +19,59 @@
     <button class="btn btn-secondary">Suchen</button>
   </div>
 </form>
+<form method="get" action="{% url 'crates:cards' %}" class="crate-select">
 {% for crate in object_list %}
-  <a class="card transparent mb-2" href="{{ crate.get_absolute_url }}">
-    <div class="card-body">
-      <div class="d-flex gap-2">
-        <span class="code">{{ crate.code }}</span>
-        <strong class="text-white">{{ crate.name }}</strong>
+  <div class="crate-row mb-2">
+    <label class="pick" title="für den Kartendruck auswählen">
+      <input type="checkbox" name="c" value="{{ crate.code }}" aria-label="{{ crate.code }} {{ crate.name }} für den Kartendruck auswählen">
+    </label>
+    <a class="card transparent" href="{{ crate.get_absolute_url }}">
+      <div class="card-body">
+        <div class="d-flex gap-2">
+          <span class="code">{{ crate.code }}</span>
+          <strong class="text-white">{{ crate.name }}</strong>
+        </div>
+        <div class="muted">
+          {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
+          · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}
+          {% if crate.location %}· {{ crate.location }}{% endif %}
+        </div>
       </div>
-      <div class="muted">
-        {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
-        · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}
-        {% if crate.location %}· {{ crate.location }}{% endif %}
-      </div>
-    </div>
-  </a>
+    </a>
+  </div>
 {% empty %}
   <p class="muted">Keine Crates gefunden.</p>
 {% endfor %}
+{% if object_list %}
+  <div class="print-bar">
+    <label class="form-check mb-0"><input class="form-check-input" type="checkbox" id="pick-all"> <span class="form-check-label">alle</span></label>
+    <span class="muted flex-grow-1" id="pick-count">Crates für den Kartendruck auswählen</span>
+    <button class="btn btn-secondary" name="format" value="a5" title="2 Karten pro A4-Blatt">Karten A5</button>
+    <button class="btn btn-secondary" name="format" value="a6" title="4 Karten pro A4-Blatt">Karten A6</button>
+  </div>
+{% endif %}
+</form>
+<script>
+  (function () {
+    var form = document.querySelector('.crate-select');
+    var boxes = form.querySelectorAll('input[name=c]');
+    var all = document.getElementById('pick-all'), count = document.getElementById('pick-count');
+    if (!all) return;
+    function update() {
+      var n = form.querySelectorAll('input[name=c]:checked').length;
+      count.textContent = n ? n + (n === 1 ? ' Crate' : ' Crates') + ' ausgewählt' : 'Crates für den Kartendruck auswählen';
+      all.checked = n === boxes.length;
+      form.querySelectorAll('button[name=format]').forEach(function (button) { button.disabled = !n; });
+    }
+    all.addEventListener('change', function () {
+      boxes.forEach(function (box) { box.checked = all.checked; });
+      update();
+    });
+    form.addEventListener('change', update);
+    // nach „zurück“ aus der Druckansicht stehen die Haken noch
+    window.addEventListener('pageshow', update);
+  })();
+</script>
 {% if is_paginated %}
   <p class="d-flex gap-3 align-items-center mt-3">
     {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
