@@ -22,7 +22,7 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       geschrieben, aber noch nie gebaut worden – auf dem Entwicklungsrechner
       gibt es weder Docker noch Podman. Auch die Postgres-Variante ist ungetestet.
 - [ ] **Zielrechner und Reverse Proxy**: wo läuft der Container, wer macht HTTPS
-      für `crates.c-base.org`? Proxy auf `127.0.0.1:8000`, `Host` und
+      für `crates.c-base.org`? Proxy auf `127.0.0.1:27283`, `Host` und
       `X-Forwarded-Proto` durchreichen.
 - [ ] **`.env` auf dem Zielrechner**: neues `DJANGO_SECRET_KEY`,
       `DJANGO_ALLOWED_HOSTS=crates.c-base.org`, OIDC-Daten.

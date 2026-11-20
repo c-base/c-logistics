@@ -138,7 +138,7 @@ Tests: `.venv/bin/python manage.py test`
 
 Die App läuft als ein Container (gunicorn, statische Dateien über whitenoise)
 und spricht nur HTTP. HTTPS macht ein Reverse Proxy davor, der an
-`127.0.0.1:8000` weiterleitet und `Host` sowie `X-Forwarded-Proto` durchreicht.
+`127.0.0.1:27283` weiterleitet und `Host` sowie `X-Forwarded-Proto` durchreicht.
 Die Befehle gelten genauso für `podman-compose`.
 
 ```sh
@@ -161,7 +161,7 @@ docker compose exec app python manage.py createsuperuser
   `client_max_body_size 30m;`), sonst scheitern Handyfotos.
 - **Ohne Proxy ausprobieren:** `DJANGO_SECURE_COOKIES=0` und `localhost` in
   `DJANGO_ALLOWED_HOSTS`, dann geht die Anmeldung auch über
-  `http://localhost:8000`.
+  `http://localhost:27283`.
 
 ## Einstellungen (.env)
 

@@ -19,7 +19,8 @@ services:
       - data:/data
     ports:
       # Nur lokal erreichbar; der Reverse Proxy leitet hierher weiter.
-      - "${APP_BIND:-127.0.0.1:8000}:8000"
+      # 27283 = „crate“ auf der Telefontastatur. Im Container bleibt es Port 8000.
+      - "${APP_BIND:-127.0.0.1:27283}:8000"
 
 volumes:
   data:
