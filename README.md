@@ -113,7 +113,7 @@ Bootstrap-5-Fassung (Bootswatch Cyborg 5.3.8 plus `bootstrap.custom.css`).
 - Die benötigten Theme-Dateien liegen als Kopie unter
   `static/c-base-bootstrap/` (CSS, Bootstrap-JS, Hintergrundbild). Stand:
   Branch [`bootstrap5`](https://github.com/c-base/c-base-bootstrap/tree/bootstrap5),
-  Commit `91b0fc0`. `master` bleibt die Bootstrap-3-Fassung, die andere
+  Commit `89659d3`. `master` bleibt die Bootstrap-3-Fassung, die andere
   c-base-Anwendungen einbinden.
 - `crates/static/crates/app.css` ergänzt nur, was c-logistics eigen ist:
   Eingabefelder im Stil von `.terminal`, das abgedunkelte Stationsbild als
