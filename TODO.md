@@ -49,10 +49,10 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       (altes Label zeigt dann auf die neue Crate). Festen Zähler einbauen?
 - [ ] **`0000` /dev/null**: Löschschutz? Sollen entfernte Inhaltspositionen
       dorthin verschoben statt gelöscht werden?
-- [ ] **Theme veröffentlichen**: Die Bootstrap-5-Fassung von c-base-bootstrap
-      liegt nur lokal (`~/projects/c-base-bootstrap`, Branch `bootstrap5`). Mit
-      c-base abstimmen, pushen bzw. Pull Request stellen und die Kopie unter
-      `static/c-base-bootstrap/` danach durch ein Git-Submodul ersetzen.
+- [ ] **Theme als Submodul?** Die Bootstrap-5-Fassung liegt jetzt bei c-base im
+      Branch `bootstrap5` (nicht in `master`, das bleibt Bootstrap 3). Offen: die
+      Kopie unter `static/c-base-bootstrap/` durch ein Git-Submodul ersetzen,
+      und mit c-base klären, ob und wann `bootstrap5` der Hauptzweig wird.
 - [ ] **Logo** stammt von c-beam (`crates/static/crates/logo.png`) – klären,
       ob es hier im Repository liegen darf.
 
