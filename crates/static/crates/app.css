@@ -108,6 +108,15 @@ input[type=checkbox] { accent-color: #2a9fd6; }
 .login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 70px); }
 .login-box { width: 100%; max-width: 360px; }
 
+/* kleiner Kopier-Knopf neben der Adresse */
+.copy-link { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: 28px; height: 28px; padding: 0; margin-left: 0.25rem;
+             background: none; border: 1px solid #282828; border-radius: 3px; color: #33b5e5; cursor: pointer; }
+.copy-link:hover, .copy-link:focus-visible { border-color: #2a9fd6; color: #fff; outline: none; }
+.copy-link .icon-done { display: none; }
+.copy-link.copied { border-color: #77b300; color: #77b300; }
+.copy-link.copied .icon-copy { display: none; }
+.copy-link.copied .icon-done { display: inline; }
+
 .label-preview { width: 14rem; max-width: 100%; height: auto; background: #fff; border-radius: 2px; }
 
 /* Finger statt Maus: größere Trefferflächen */
@@ -117,6 +126,7 @@ input[type=checkbox] { accent-color: #2a9fd6; }
   .items td a { display: inline-block; padding: 10px 0; }
   .photos .btn-link { padding: 8px 0; }
   .crate-row .pick { min-width: 44px; }
+  .copy-link { width: 40px; height: 40px; }
   .crate-row .pick input { width: 22px; height: 22px; }
   input[type=checkbox] { width: 22px; height: 22px; }
   #id_responsible label { min-height: 44px; }
