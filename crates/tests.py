@@ -1,13 +1,19 @@
 from django.contrib.auth import get_user_model
 import io
 import tempfile
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
+import requests
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from PIL import Image, ImageOps
 from django.urls import reverse
 
+from . import describe
 from .labels import FONTS, labels_ql_raster, public_url, render_label
 from .models import Crate, Item, Photo, format_code
 
@@ -201,7 +207,8 @@ def photo_upload(size=(3000, 2000), name='IMG_0001.jpg', orientation=None):
     return SimpleUploadedFile(name, buffer.getvalue(), content_type='image/jpeg')
 
 
-@override_settings(PRINT_COPIES=1)
+# Ohne AI_BASE_URL geht kein Foto an die KI – unabhängig von einer lokalen .env.
+@override_settings(PRINT_COPIES=1, AI_BASE_URL='')
 class PhotoTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -564,3 +571,115 @@ class AppInstallTests(TestCase):
         response = self.client.get(reverse('login'))
         self.assertContains(response, '<link rel="manifest" href="/manifest.webmanifest">')
         self.assertContains(response, 'apple-touch-icon')
+
+
+def ai_answer(text):
+    response = mock.Mock()
+    response.json.return_value = {'choices': [{'message': {'role': 'assistant', 'content': text}}]}
+    return response
+
+
+@override_settings(AI_BASE_URL='https://ki.example/v1', AI_MODEL='bonsai', AI_API_KEY='', AI_TIMEOUT=5)
+class DescribeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.member = get_user_model().objects.create_user('alice', password='pw')
+        cls.crate = Crate.objects.create(name='Kabelkiste')
+
+    def setUp(self):
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        settings = override_settings(MEDIA_ROOT=media.name)
+        settings.enable()
+        self.addCleanup(settings.disable)
+        self.client.force_login(self.member)
+        self.upload_url = reverse('crates:photo-upload', args=[self.crate.code])
+
+    def photo(self, **fields):
+        photo = Photo.create_from_upload(self.crate, photo_upload(), self.member)
+        if fields:
+            Photo.objects.filter(pk=photo.pk).update(**fields)
+            photo.refresh_from_db()
+        return photo
+
+    @mock.patch('crates.describe.requests.post')
+    def test_photo_is_sent_as_jpeg_and_the_answer_is_stored(self, post):
+        post.return_value = ai_answer('Vier HDMI-Kabel\n und ein Netzteil. ')
+        photo = self.photo()
+        self.assertTrue(describe.describe_photo(photo))
+        photo.refresh_from_db()
+        self.assertEqual(photo.description, 'Vier HDMI-Kabel und ein Netzteil.')
+        (url,), kwargs = post.call_args
+        self.assertEqual(url, 'https://ki.example/v1/chat/completions')
+        self.assertEqual(kwargs['timeout'], 5)
+        self.assertEqual(kwargs['json']['model'], 'bonsai')
+        picture = kwargs['json']['messages'][0]['content'][1]['image_url']['url']
+        self.assertTrue(picture.startswith('data:image/jpeg;base64,/9j/'))
+
+    @mock.patch('crates.describe.requests.post')
+    def test_unreachable_ai_or_useless_answer_leaves_the_photo_without_description(self, post):
+        photo = self.photo()
+        for failure in (requests.ConnectionError('aus'), requests.Timeout()):
+            post.side_effect = failure
+            with self.assertLogs('crates.describe', 'WARNING'):
+                self.assertFalse(describe.describe_photo(photo))
+        post.side_effect = None
+        for answer in ('  ', None):
+            post.return_value = ai_answer(answer)
+            with self.assertLogs('crates.describe', 'WARNING'):
+                self.assertFalse(describe.describe_photo(photo))
+        post.return_value = mock.Mock(**{'raise_for_status.side_effect': requests.HTTPError('429')})
+        with self.assertLogs('crates.describe', 'WARNING'):
+            self.assertFalse(describe.describe_photo(photo))
+        photo.refresh_from_db()
+        self.assertEqual(photo.description, '')
+
+    @mock.patch('crates.views.describe_later')
+    def test_upload_hands_the_new_photos_to_the_ai_after_saving(self, later):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(self.upload_url, {'images': [photo_upload(name='a.jpg'), photo_upload(name='b.jpg')]})
+        (photos,), _ = later.call_args
+        self.assertCountEqual(photos, self.crate.photos.all())
+
+    @mock.patch('crates.describe.threading.Thread')
+    def test_nothing_leaves_the_app_without_ai_address(self, thread):
+        photo = self.photo()
+        with override_settings(AI_BASE_URL=''):
+            describe.describe_later([photo])
+        thread.assert_not_called()
+        describe.describe_later([])
+        thread.assert_not_called()
+        describe.describe_later([photo])
+        thread.assert_called_once()
+
+    def test_description_is_shown_and_found_by_the_search(self):
+        self.photo(description='Ein Lötkolben <und> Lötzinn.')
+        page = self.client.get(self.crate.get_absolute_url())
+        self.assertContains(page, 'Ein Lötkolben &lt;und&gt; Lötzinn.')
+        Crate.objects.create(name='Leer')
+        found = self.client.get(reverse('crates:list'), {'q': 'lötkolben'})
+        self.assertEqual(list(found.context['object_list']), [self.crate])
+
+    @mock.patch('crates.describe.requests.post')
+    def test_command_describes_only_photos_without_description(self, post):
+        post.return_value = ai_answer('Zwei Zangen.')
+        done = self.photo(description='Schon beschrieben.')
+        todo = self.photo()
+        out = StringIO()
+        call_command('describe_photos', stdout=out)
+        self.assertEqual(post.call_count, 1)
+        todo.refresh_from_db()
+        done.refresh_from_db()
+        self.assertEqual(todo.description, 'Zwei Zangen.')
+        self.assertEqual(done.description, 'Schon beschrieben.')
+        self.assertIn('Zwei Zangen.', out.getvalue())
+        call_command('describe_photos', '--all', '--crate', self.crate.code.lower(), stdout=StringIO())
+        self.assertEqual(post.call_count, 3)
+
+    @mock.patch('crates.describe.requests.post', side_effect=requests.ConnectionError('aus'))
+    def test_command_reports_failures_and_needs_the_ai_address(self, post):
+        self.photo()
+        with self.assertLogs('crates.describe', 'WARNING'), self.assertRaises(CommandError):
+            call_command('describe_photos', stdout=StringIO(), stderr=StringIO())
+        with override_settings(AI_BASE_URL=''), self.assertRaises(CommandError):
+            call_command('describe_photos')

@@ -23,5 +23,6 @@ admin.site.register(Location)
 
 @admin.register(Photo)
 class PhotoAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'crate', 'uploaded_by', 'created_at']
+    list_display = ['__str__', 'crate', 'uploaded_by', 'created_at', 'description']
+    search_fields = ['description', 'crate__code', 'crate__name']
     readonly_fields = ['image', 'thumbnail', 'uploaded_by']

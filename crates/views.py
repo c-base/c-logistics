@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Count, Q
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
@@ -8,6 +9,7 @@ from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.views import generic
 
+from .describe import describe_later
 from .forms import CrateForm, ItemForm
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
 from .models import Crate, Item, Photo, normalize_code
@@ -70,6 +72,7 @@ class CrateListView(LoginRequiredMixin, generic.ListView):
                 | Q(code=normalize_code(query))
                 | Q(description__icontains=query)
                 | Q(items__name__icontains=query)
+                | Q(photos__description__icontains=query)
             ).distinct()
         if self.request.GET.get('mine'):
             qs = qs.filter(responsible=self.request.user)
@@ -328,11 +331,14 @@ class PhotoUploadView(LoginRequiredMixin, generic.View):
         uploads = request.FILES.getlist('images')
         if not uploads:
             messages.error(request, 'Es wurde kein Bild ausgewählt.')
+        photos = []
         for upload in uploads:
             try:
-                Photo.create_from_upload(crate, upload, request.user)
+                photos.append(Photo.create_from_upload(crate, upload, request.user))
             except PhotoError as error:
                 messages.error(request, str(error))
+        # Erst nach dem Speichern, damit der Hintergrund-Thread die Fotos in der Datenbank findet.
+        transaction.on_commit(lambda: describe_later(photos))
         return redirect(f'{crate.get_absolute_url()}#fotos')
 
 

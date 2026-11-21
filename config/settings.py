@@ -227,5 +227,14 @@ LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')
 # über eine Ansicht mit Anmeldung ausgeliefert (crates.views.PhotoFileView).
 MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT') or BASE_DIR / 'media')
 
+# Bildbeschreibung durch die c-base-KI: OpenAI-kompatible Schnittstelle eines
+# Modells, das Bilder versteht (crates/describe.py). Leer = Fotos werden nicht
+# beschrieben und verlassen die App nicht.
+AI_BASE_URL = os.environ.get('AI_BASE_URL', '').rstrip('/')
+AI_MODEL = os.environ.get('AI_MODEL') or 'bonsai'
+AI_API_KEY = os.environ.get('AI_API_KEY', '')
+# Sekunden je Foto. Ein Foto braucht etwa 15 s; ist das Modell belegt, länger.
+AI_TIMEOUT = int(os.environ.get('AI_TIMEOUT') or 180)
+
 # Projektweite statische Dateien: das c-base-Theme unter static/c-base-bootstrap/
 STATICFILES_DIRS = [BASE_DIR / 'static']

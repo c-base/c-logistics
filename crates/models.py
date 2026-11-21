@@ -125,6 +125,10 @@ class Photo(models.Model):
         on_delete=models.SET_NULL, related_name='+',
     )
     created_at = models.DateTimeField('Hochgeladen', auto_now_add=True)
+    description = models.TextField(
+        'Beschreibung', blank=True,
+        help_text='Was auf dem Foto zu sehen ist. Schreibt die KI nach dem Hochladen (crates/describe.py).',
+    )
 
     class Meta:
         verbose_name = 'Foto'

@@ -62,7 +62,8 @@
     <div class="photos">
       {% for photo in crate.photos.all %}
       <figure>
-        <a href="{% url 'crates:photo' crate.code photo.pk %}"><img src="{% url 'crates:photo-thumbnail' crate.code photo.pk %}" loading="lazy" alt="Foto vom Inhalt, {{ photo.created_at|date:"SHORT_DATE_FORMAT" }}"></a>
+        <a href="{% url 'crates:photo' crate.code photo.pk %}"><img src="{% url 'crates:photo-thumbnail' crate.code photo.pk %}" loading="lazy" alt="{{ photo.description|default:"Foto vom Inhalt" }}"></a>
+        {% if photo.description %}<p class="description">{{ photo.description }}</p>{% endif %}
         <figcaption>
           <span class="muted">{{ photo.created_at|date:"SHORT_DATE_FORMAT" }}{% if photo.uploaded_by %} · {{ photo.uploaded_by }}{% endif %}</span>
           <form method="post" action="{% url 'crates:photo-delete' crate.code photo.pk %}" onsubmit="return confirm('Foto löschen?')">

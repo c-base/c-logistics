@@ -114,6 +114,27 @@ Smartphone, mit dem man ohnehin gerade den Tag gescannt hat.
   ausgeliefert – über die App, nicht direkt vom Webserver.
 - Wird ein Foto oder die Crate gelöscht, verschwinden auch die Dateien.
 
+### Beschreibung durch die KI
+
+Ist `AI_BASE_URL` gesetzt, geht jedes neue Foto an die c-base-KI
+(<https://ai.cbrp3.c-base.org/>, Modell Bonsai 2, das Bilder versteht), und sie
+schreibt in ein bis drei Sätzen auf, was zu sehen ist.
+
+- Die Beschreibung steht unter dem Foto und wird von der Suche in der Liste
+  gefunden – wer „Lötkolben“ sucht, findet die Crate auch ohne passende
+  Inhaltsposition.
+- Der Upload wartet nicht darauf: die Anfrage läuft im Hintergrund und braucht
+  etwa 15 Sekunden je Foto. Die Beschreibung erscheint beim nächsten Laden der
+  Seite.
+- Scheitert die Anfrage (KI nicht erreichbar, App währenddessen neu gestartet),
+  bleibt das Foto ohne Beschreibung. `python manage.py describe_photos` holt
+  alle fehlenden nach, auch für Fotos von vor der Einrichtung; `--all`
+  beschreibt alle neu, `--crate 001A` nur die einer Crate.
+- Übertragen wird nur das verkleinerte Bild ohne Metadaten, sonst nichts – kein
+  Name, keine Crate-ID. Ohne `AI_BASE_URL` verlässt kein Foto die App.
+- Einstellungen: `AI_BASE_URL` (OpenAI-kompatibel, bis einschließlich `/v1`),
+  `AI_MODEL`, `AI_API_KEY`, `AI_TIMEOUT`, siehe `.env.example`.
+
 ## Anmeldung (OAuth2 / OpenID Connect)
 
 Member melden sich über einen OIDC-Provider an (Authorization Code Flow,
