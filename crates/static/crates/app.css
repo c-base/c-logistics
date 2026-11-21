@@ -71,6 +71,9 @@ h2, .h2 { font-size: 1.5rem; margin-top: 1.75rem; }
 #id_responsible label { font-weight: 400; }
 #id_responsible label { display: flex; align-items: center; gap: 0.6rem; padding: 2px 0; }
 input[type=checkbox] { accent-color: #2a9fd6; }
+/* Haken mit Beschriftung in einer Zeile: mittig ausgerichtet, mit Abstand */
+.check-inline { display: inline-flex; align-items: center; gap: 0.55rem; margin: 0; font-weight: 400; line-height: 1; cursor: pointer; }
+.check-inline input { width: 18px; height: 18px; margin: 0; flex: none; }
 .field-error { color: #ff5a4d; }
 
 .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -133,6 +136,8 @@ input[type=checkbox] { accent-color: #2a9fd6; }
   .crate-row .pick { min-width: 44px; }
   .copy-link { width: 40px; height: 40px; }
   .crate-row .pick input { width: 22px; height: 22px; }
+  .check-inline input { width: 22px; height: 22px; }
+  .check-inline { min-height: 44px; }
   input[type=checkbox] { width: 22px; height: 22px; }
   #id_responsible label { min-height: 44px; }
 }
