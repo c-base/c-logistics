@@ -21,6 +21,7 @@ app_name = 'crates'
 
 urlpatterns = [
     path('', views.CrateListView.as_view(), name='list'),
+    path('manifest.webmanifest', views.manifest, name='manifest'),
     path('new/', views.CrateCreateView.as_view(), name='create'),
     path('cards/', views.CardSheetView.as_view(), name='cards'),
     path('labels/', views.LabelSheetView.as_view(), name='labels'),

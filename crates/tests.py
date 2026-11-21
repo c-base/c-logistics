@@ -539,3 +539,28 @@ class CopiesTests(TestCase):
         page = self.client.get('/0001')
         self.assertContains(page, 'Label als PDF (2×)')
         self.assertContains(page, 'Karte DIN A5 (2×)')
+
+
+class AppInstallTests(TestCase):
+    """Installation auf dem Telefon als App (PWA)."""
+
+    def test_manifest_is_public_and_points_to_existing_icons(self):
+        from django.contrib.staticfiles import finders
+
+        response = self.client.get('/manifest.webmanifest')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/manifest+json')
+        data = response.json()
+        self.assertEqual((data['start_url'], data['scope'], data['display']), ('/', '/', 'standalone'))
+        self.assertEqual({icon['sizes'] for icon in data['icons']}, {'192x192', '512x512'})
+        self.assertIn('maskable', [icon['purpose'] for icon in data['icons']])
+        for icon in data['icons']:
+            path = finders.find(icon['src'].removeprefix('/static/'))
+            self.assertIsNotNone(path, icon['src'])
+            with Image.open(path) as image:
+                self.assertEqual(f'{image.width}x{image.height}', icon['sizes'])
+
+    def test_pages_link_the_manifest(self):
+        response = self.client.get(reverse('login'))
+        self.assertContains(response, '<link rel="manifest" href="/manifest.webmanifest">')
+        self.assertContains(response, 'apple-touch-icon')

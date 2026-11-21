@@ -59,6 +59,10 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       Branch `bootstrap5` (nicht in `master`, das bleibt Bootstrap 3). Offen: die
       Kopie unter `static/c-base-bootstrap/` durch ein Git-Submodul ersetzen,
       und mit c-base klären, ob und wann `bootstrap5` der Hauptzweig wird.
+- [ ] **App-Icons aus einer größeren Logo-Vorlage** erzeugen (`manage.py
+      make_icons <logo>`); bisher das 96-px-Stationslogo aus c-beam-droid,
+      hochskaliert und unscharf. Danach Installation auf einem
+      Android-Gerät testen: App installieren, QR-Code scannen – öffnet sich die App?
 - [ ] **Logo** stammt von c-beam (`crates/static/crates/logo.png`) – klären,
       ob es hier im Repository liegen darf.
 

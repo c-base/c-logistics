@@ -2,8 +2,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
 from django.db.models import Count, Q
 from django.contrib import messages
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.views import generic
 
@@ -11,6 +12,35 @@ from .forms import CrateForm, ItemForm
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
 from .models import Crate, Item, Photo, normalize_code
 from .photos import PhotoError
+
+
+def manifest(request):
+    """Web-App-Manifest: damit lässt sich c-logistics auf dem Telefon als App installieren.
+
+    Ohne Anmeldung abrufbar, weil der Browser es ohne Sitzung lädt.
+    """
+    def icon(name, size, purpose='any'):
+        return {'src': static(f'crates/icons/{name}'), 'sizes': f'{size}x{size}', 'type': 'image/png', 'purpose': purpose}
+
+    data = {
+        'id': '/',
+        'name': 'c-base cargo crates',
+        'short_name': 'crates',
+        'description': 'Verwaltung der c-base cargo crates',
+        'lang': 'de',
+        'start_url': '/',
+        # Alles unter der Adresse gehört zur App – auch /<ID> aus QR-Code und NFC-Tag.
+        'scope': '/',
+        'display': 'standalone',
+        'background_color': '#060606',
+        'theme_color': '#060606',
+        'icons': [
+            icon('icon-192.png', 192),
+            icon('icon-512.png', 512),
+            icon('maskable-512.png', 512, 'maskable'),
+        ],
+    }
+    return JsonResponse(data, content_type='application/manifest+json')
 
 
 class CrateLookupMixin:

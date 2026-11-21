@@ -154,6 +154,24 @@ Bootstrap-5-Fassung (Bootswatch Cyborg 5.3.8 plus `bootstrap.custom.css`).
   Template `crates/templates/forms/bootstrap.html`.
 - Das Logo unter `crates/static/crates/logo.png` stammt von c-beam.
 
+## Als App auf dem Telefon
+
+c-logistics lässt sich als Web-App installieren (in Chrome auf Android: Menü →
+„App installieren“ bzw. „Zum Startbildschirm hinzufügen“). Sie läuft dann ohne
+Adressleiste, und Links auf `crates.c-base.org` – also auch gescannte QR-Codes
+und NFC-Tags – öffnen sich in der App.
+
+- Das Manifest kommt von `/manifest.webmanifest`, die Icons liegen unter
+  `crates/static/crates/icons/`.
+- Die Icons zeigen vorerst das Stationslogo aus
+  [c-beam-droid](https://github.com/c-base/c-beam-droid) (`ic_launcher.png`,
+  WTFPL). Das gibt es dort nur in 96 px, das große Icon ist deshalb unscharf.
+  Mit einer größeren Vorlage neu erzeugen:
+  `.venv/bin/python manage.py make_icons pfad/zum/logo.png` – mindestens
+  512 px, transparenter Hintergrund. Ohne Angabe entsteht ein Schriftzug „crate“.
+- Die Installation setzt HTTPS voraus. Offline funktioniert die App nicht; sie
+  braucht den Server und die Anmeldung.
+
 ## Entwicklung
 
 ```sh

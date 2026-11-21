@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#060606">
   <title>{% block title %}c-base cargo crates{% endblock %} · c-logistics</title>
   <link rel="icon" href="{% static 'crates/logo.png' %}">
+  <link rel="manifest" href="{% url 'crates:manifest' %}">
+  <link rel="apple-touch-icon" href="{% static 'crates/icons/apple-touch-icon.png' %}">
   <link href="{% static 'c-base-bootstrap/css/cyborg.min.css' %}" rel="stylesheet">
   <link href="{% static 'c-base-bootstrap/css/bootstrap.custom.css' %}" rel="stylesheet">
   <link href="{% static 'crates/app.css' %}" rel="stylesheet">
