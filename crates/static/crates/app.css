@@ -143,6 +143,8 @@ input[type=checkbox] { accent-color: #2a9fd6; }
   /* unter 16 px zoomt der mobile Browser beim Antippen in das Feld hinein */
   .form-control, .form-select { font-size: 16px; }
   .actions > * { flex: 1 1 8rem; }
+  /* Knopf neben der Seitenüberschrift: eigene Zeile in voller Breite */
+  .page-action { flex: 1 1 100%; }
   /* Druckleiste erst zeigen, wenn eine Crate angehakt ist – sie verdeckt sonst
      ein gutes Stück der Liste. Browser ohne :has() zeigen sie immer. */
   .crate-select:not(:has(input[name=c]:checked)) .print-bar { display: none; }
