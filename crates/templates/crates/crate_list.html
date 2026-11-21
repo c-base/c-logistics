@@ -20,6 +20,12 @@
   </div>
 </form>
 <form method="get" action="{% url 'crates:print' %}" class="crate-select">
+{% if object_list %}
+  <label class="crate-row pick-all-row mb-2">
+    <span class="pick"><input type="checkbox" id="pick-all"></span>
+    <span class="muted">alle auswählen</span>
+  </label>
+{% endif %}
 {% for crate in object_list %}
   <div class="crate-row mb-2">
     <label class="pick" title="zum Drucken auswählen">
@@ -44,10 +50,7 @@
 {% endfor %}
 {% if object_list %}
   <div class="print-bar">
-    <div class="picked">
-      <label class="form-check mb-0"><input class="form-check-input" type="checkbox" id="pick-all"> <span class="form-check-label">alle</span></label>
-      <span class="muted" id="pick-count">Crates zum Drucken auswählen</span>
-    </div>
+    <span class="muted picked" id="pick-count">Crates zum Drucken auswählen</span>
     <div class="print-what">
       <select class="form-select" name="what" id="print-what" aria-label="Was gedruckt wird">
         {% for key, label in print_variants %}<option value="{{ key }}">{{ label }}</option>

@@ -88,11 +88,9 @@ input[type=checkbox] { accent-color: #2a9fd6; }
 .crate-row .card { flex: 1; min-width: 0; }
 .crate-row .pick { display: flex; align-items: center; justify-content: center; padding: 0 0.35rem; cursor: pointer; }
 .crate-row .pick input { width: 18px; height: 18px; }
+.pick-all-row { align-items: center; cursor: pointer; font-weight: 400; }
 .print-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;
              padding: 0.6rem 0.75rem; margin-top: 0.75rem; background: rgba(6, 6, 6, 0.92); border: 1px solid #282828; }
-.print-bar .picked { display: flex; align-items: center; gap: 0.75rem; }
-.print-bar .form-check { display: flex; align-items: center; gap: 0.4rem; padding-left: 0; }
-.print-bar .form-check-input { margin: 0; float: none; }
 /* Auswahl, Anzahl und Knopf bleiben in einer Zeile; die Auswahl gibt nach */
 .print-bar .print-what { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 18rem; min-width: 0; max-width: 34rem; }
 .print-bar .print-what select { flex: 1 1 auto; min-width: 0; padding-top: 4px; padding-bottom: 4px; text-overflow: ellipsis; }
@@ -145,6 +143,9 @@ input[type=checkbox] { accent-color: #2a9fd6; }
   /* unter 16 px zoomt der mobile Browser beim Antippen in das Feld hinein */
   .form-control, .form-select { font-size: 16px; }
   .actions > * { flex: 1 1 8rem; }
+  /* Druckleiste erst zeigen, wenn eine Crate angehakt ist – sie verdeckt sonst
+     ein gutes Stück der Liste. Browser ohne :has() zeigen sie immer. */
+  .crate-select:not(:has(input[name=c]:checked)) .print-bar { display: none; }
   /* Druckleiste: Auswahl in eigener Zeile, darunter Anzahl und Knopf */
   .print-bar .print-what { flex-wrap: wrap; max-width: none; }
   .print-bar .print-what select { flex-basis: 100%; }
