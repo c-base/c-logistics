@@ -356,7 +356,8 @@ class PhotoTests(TestCase):
     def test_list_offers_selection_for_card_printing(self):
         response = self.client.get(reverse('crates:list'))
         self.assertContains(response, f'name="c" value="{self.crate.code}"')
-        self.assertContains(response, reverse('crates:cards'))
+        self.assertContains(response, f'action="{reverse("crates:print")}"')
+        self.assertContains(response, '<option value="cards-a6">')
 
     def test_photo_address_and_file_name_carry_the_crate_id(self):
         self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
@@ -461,7 +462,24 @@ class LabelSheetTests(TestCase):
 
     def test_list_offers_label_printing_for_the_selection(self):
         response = self.client.get(reverse('crates:list'))
-        self.assertContains(response, f'formaction="{self.url}"', count=2)
+        self.assertContains(response, '<option value="labels-pdf">')
+        self.assertContains(response, '<option value="labels-ql">')
+
+    def test_print_bar_leads_to_the_chosen_variant_and_keeps_selection_and_copies(self):
+        url = reverse('crates:print')
+        query = {'c': self.codes[:2], 'copies': '3'}
+        targets = {
+            'labels-pdf': '/labels/?copies=3&c=0001&c=0002&format=pdf',
+            'labels-ql': '/labels/?copies=3&c=0001&c=0002&format=ql',
+            'cards-a5': '/cards/?copies=3&c=0001&c=0002&format=a5',
+            'cards-a6': '/cards/?copies=3&c=0001&c=0002&format=a6',
+            'unsinn': '/labels/?copies=3&c=0001&c=0002&format=pdf',
+        }
+        for what, target in targets.items():
+            response = self.client.get(url, {**query, 'what': what})
+            self.assertEqual(response.status_code, 302)
+            self.assertCountEqual(response['Location'].split('?')[1].split('&'), target.split('?')[1].split('&'))
+            self.assertEqual(response['Location'].split('?')[0], target.split('?')[0])
 
     def test_labels_require_login(self):
         self.client.logout()

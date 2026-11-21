@@ -24,6 +24,7 @@ urlpatterns = [
     path('new/', views.CrateCreateView.as_view(), name='create'),
     path('cards/', views.CardSheetView.as_view(), name='cards'),
     path('labels/', views.LabelSheetView.as_view(), name='labels'),
+    path('print/', views.PrintDispatchView.as_view(), name='print'),
     path('item/<int:pk>/', views.ItemUpdateView.as_view(), name='item-update'),
     path('item/<int:pk>/delete/', views.ItemDeleteView.as_view(), name='item-delete'),
     # Ziel von NFC-Tag und QR-Code: https://crates.c-base.org/<ID>

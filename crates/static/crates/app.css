@@ -26,7 +26,7 @@ body::before {
 .navbar form { margin: 0; }
 
 .muted { color: #777; }
-.code { font-family: Menlo, Monaco, Consolas, "Courier New", monospace; letter-spacing: 0.05em; color: #33b5e5; }
+.code { white-space: nowrap; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; letter-spacing: 0.05em; color: #33b5e5; }
 code { color: #33b5e5; }
 
 /* Karten: halbtransparent wie .transparent im Theme, mit dünnem Rahmen */
@@ -88,12 +88,17 @@ input[type=checkbox] { accent-color: #2a9fd6; }
 .crate-row .card { flex: 1; min-width: 0; }
 .crate-row .pick { display: flex; align-items: center; justify-content: center; padding: 0 0.35rem; cursor: pointer; }
 .crate-row .pick input { width: 18px; height: 18px; }
-.print-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; margin-top: 0.75rem;
-             background: rgba(6, 6, 6, 0.92); border: 1px solid #282828; }
-.print-bar .copies { display: flex; align-items: center; gap: 0.35rem; margin: 0; white-space: nowrap; }
-.print-bar .copies input { width: 4.2rem; padding: 4px 8px; text-align: right; }
+.print-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;
+             padding: 0.6rem 0.75rem; margin-top: 0.75rem; background: rgba(6, 6, 6, 0.92); border: 1px solid #282828; }
+.print-bar .picked { display: flex; align-items: center; gap: 0.75rem; }
 .print-bar .form-check { display: flex; align-items: center; gap: 0.4rem; padding-left: 0; }
 .print-bar .form-check-input { margin: 0; float: none; }
+/* Auswahl, Anzahl und Knopf bleiben in einer Zeile; die Auswahl gibt nach */
+.print-bar .print-what { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 18rem; min-width: 0; max-width: 34rem; }
+.print-bar .print-what select { flex: 1 1 auto; min-width: 0; padding-top: 4px; padding-bottom: 4px; text-overflow: ellipsis; }
+.print-bar .copies { display: flex; align-items: center; gap: 0.3rem; margin: 0; white-space: nowrap; flex: none; }
+.print-bar .copies input { width: 3.6rem; padding: 4px 8px; text-align: right; }
+.print-bar .btn { flex: none; }
 
 /* Fotos vom Inhalt: Vorschaubilder im Raster, auf dem Telefon zwei nebeneinander */
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
@@ -140,6 +145,10 @@ input[type=checkbox] { accent-color: #2a9fd6; }
   /* unter 16 px zoomt der mobile Browser beim Antippen in das Feld hinein */
   .form-control, .form-select { font-size: 16px; }
   .actions > * { flex: 1 1 8rem; }
+  /* Druckleiste: Auswahl in eigener Zeile, darunter Anzahl und Knopf */
+  .print-bar .print-what { flex-wrap: wrap; max-width: none; }
+  .print-bar .print-what select { flex-basis: 100%; }
+  .print-bar .print-what .btn { flex: 1 1 auto; }
   /* Aktionen unter die Bezeichnung statt in eine dritte Spalte */
   .items thead { display: none; }
   .items tr { display: grid; grid-template-columns: 3.5rem 1fr; border-bottom: 1px solid #282828; }

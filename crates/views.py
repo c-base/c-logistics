@@ -51,6 +51,7 @@ class CrateListView(LoginRequiredMixin, generic.ListView):
         context['mine'] = bool(self.request.GET.get('mine'))
         context['copies'] = settings.PRINT_COPIES
         context['max_copies'] = MAX_COPIES
+        context['print_variants'] = [(key, label) for key, (label, _, _) in PrintDispatchView.variants.items()]
         return context
 
 
@@ -177,6 +178,28 @@ def selected_crates(request):
     """Die in der Liste angehakten Crates (?c=0001&c=0002), nach ID sortiert."""
     codes = {normalize_code(code) for code in request.GET.getlist('c') if len(code) <= 4}
     return list(Crate.objects.filter(code__in=codes).order_by('code'))
+
+
+class PrintDispatchView(LoginRequiredMixin, generic.View):
+    """Ziel der Druckleiste in der Liste: leitet je nach gewählter Variante weiter.
+
+    /print/?what=labels-pdf&copies=2&c=0001&c=0002
+    """
+
+    # Variante -> (Bezeichnung in der Auswahl, Ansicht, Format)
+    variants = {
+        'labels-pdf': ('Labels als PDF', 'crates:labels', 'pdf'),
+        'labels-ql': ('Labels als QL-Druckdatei (mit Schnitt)', 'crates:labels', 'ql'),
+        'cards-a5': ('Karten DIN A5 (2 pro Blatt)', 'crates:cards', 'a5'),
+        'cards-a6': ('Karten DIN A6 (4 pro Blatt)', 'crates:cards', 'a6'),
+    }
+
+    def get(self, request, *args, **kwargs):
+        _, view, variant_format = self.variants.get(request.GET.get('what'), self.variants['labels-pdf'])
+        query = request.GET.copy()
+        query.pop('what', None)
+        query['format'] = variant_format
+        return redirect(f'{reverse(view)}?{query.urlencode()}')
 
 
 class LabelSheetView(LoginRequiredMixin, generic.View):

@@ -108,7 +108,7 @@
     <img class="label-preview" src="{% url 'crates:label' crate.code %}" alt="Label mit QR-Code und ID {{ crate.code }}">
     <div class="flex-grow-1" style="flex-basis: 14rem">
       <p>QR-Code und NFC-Tag zeigen auf:<br>
-        <span class="code" id="crate-link" style="word-break:break-all">{{ public_url }}</span>
+        <span class="code" id="crate-link" style="white-space:normal;word-break:break-all">{{ public_url }}</span>
         <button type="button" class="copy-link" id="copy-link" data-link="{{ public_url }}" title="Link kopieren" aria-label="Link kopieren">
           <svg class="icon-copy" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 3v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1H3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <svg class="icon-done" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8.5l3.5 3.5L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
