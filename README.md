@@ -17,6 +17,10 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - Gescannt wird mit Android-Smartphones; die URL öffnet die Crate-Seite im Browser.
 - Pro Crate gibt es Inhalt (Positionen mit Menge) und einen oder mehrere
   verantwortliche Member.
+- Kennt niemand die Verantwortlichen, steht dort der Platzhalter „unbecannt“.
+  Er ist gewählt, solange kein Member eingetragen ist, und verschwindet von
+  selbst, sobald einer eingetragen wird. „unbecannt“ ist kein echtes Konto:
+  inaktiv, ohne Passwort, per Migration angelegt.
 - Lagerorte sind optional, solange es noch keine beschrifteten Lagerflächen gibt.
 
 ## Labels

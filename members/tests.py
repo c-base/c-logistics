@@ -31,7 +31,7 @@ class SyncMemberTests(TestCase):
     def test_second_login_updates_instead_of_duplicating(self):
         sync_member(CLAIMS)
         member = sync_member({**CLAIMS, 'preferred_username': 'renamed', 'family_name': 'Neu'})
-        self.assertEqual(Member.objects.count(), 1)
+        self.assertEqual(Member.objects.exclude(username=Member.UNKNOWN_USERNAME).count(), 1)
         self.assertEqual(member.username, 'alice')
         self.assertEqual(member.last_name, 'Neu')
 

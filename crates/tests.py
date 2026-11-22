@@ -102,10 +102,35 @@ class CrateTests(TestCase):
         self.assertRedirects(response, crate.get_absolute_url())
         self.assertEqual(crate.responsible.count(), 2)
 
-    def test_crate_needs_a_responsible_member(self):
-        response = self.client.post(reverse('crates:create'), {'name': 'Herrenlos', 'size': '400x300'})
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(Crate.objects.filter(name='Herrenlos').exists())
+    def test_crate_without_responsible_member_belongs_to_unbecannt(self):
+        self.client.post(reverse('crates:create'), {'name': 'Herrenlos', 'size': '400x300'})
+        crate = Crate.objects.get(name='Herrenlos')
+        self.assertEqual([member.username for member in crate.responsible.all()], ['unbecannt'])
+        self.assertContains(self.client.get(crate.get_absolute_url()), 'unbecannt')
+
+    def test_unbecannt_goes_away_as_soon_as_a_member_is_responsible(self):
+        unknown = get_user_model().unknown()
+        data = {'name': 'Gefunden', 'size': '400x300', 'responsible': [unknown.pk, self.member.pk]}
+        self.client.post(reverse('crates:create'), data)
+        crate = Crate.objects.get(name='Gefunden')
+        self.assertEqual(list(crate.responsible.all()), [self.member])
+        # … und kommt zurück, wenn der letzte Member herausgenommen wird
+        self.client.post(reverse('crates:update', args=[crate.code]), {'name': 'Gefunden', 'size': '400x300'})
+        self.assertEqual(list(crate.responsible.all()), [unknown])
+
+    def test_unbecannt_is_a_placeholder_that_cannot_log_in_and_heads_the_list(self):
+        unknown = get_user_model().unknown()
+        self.assertFalse(unknown.is_active)
+        self.assertFalse(unknown.has_usable_password())
+        self.assertTrue(unknown.is_unknown)
+        self.assertEqual(get_user_model().objects.filter(username='unbecannt').count(), 1)
+        response = self.client.get(reverse('crates:create'))
+        choices = [str(label) for _, label in response.context['form'].fields['responsible'].choices]
+        self.assertEqual(choices[0], 'unbecannt')
+        self.assertContains(response, f'data-unknown="{unknown.pk}"')
+
+    def test_dev_null_belongs_to_unbecannt(self):
+        self.assertEqual([str(member) for member in Crate.objects.get(code='0000').responsible.all()], ['unbecannt'])
 
     def test_add_edit_and_remove_item(self):
         self.client.post(reverse('crates:item-create', args=[self.crate.code]), {'name': 'Netzteil', 'quantity': 2})
