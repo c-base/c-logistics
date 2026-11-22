@@ -13,7 +13,7 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       brother_ql gebaut, aber noch nie an einen Drucker gegangen. Mit zwei, drei
       Labels prüfen: Druckbild seitenrichtig und mittig, Schnitt nach jedem Label.
 - [x] **Testdruck als PDF** am QL-570 (62 mm endlos, `ptouch`-Treiber): passt mit
-      `-o PageSize=Custom.62x32mm -o nopdfAutoRotate`, siehe README.
+      `-o PageSize=Custom.62x33mm -o nopdfAutoRotate`, siehe README.
 - [ ] **Noch offen beim Drucken**: Sammel-PDF mit mehreren Labels (Schnitt nach
       jeder Seite?), QR-Code aus üblichem Abstand mit Android scannen, und der
       QL-700 mit dem Brother-Treiber (`PageSize` dort `62X1` … `62X4`).
@@ -69,8 +69,9 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
 ## P3 – Aufräumen
 
 - [ ] Nicht gewählte Label-Schriften aus `crates/fonts/` und `FONTS` entfernen
-      (Anybody; Standard ist Bai Jamjuree mit Orbitron-Nummer); `XScale.ttf` ist
-      bereits unbenutzt.
+      (Anybody; Standard ist Bai Jamjuree mit Orbitron-Nummer).
+- [ ] **Lizenz von `XScale.ttf` klären**: Die Schrift wird jetzt für das
+      NFC-Logo auf dem Label gebraucht und liegt im öffentlichen Repository.
 - [ ] `LABEL_WIDTH_PX` für andere Rollenbreiten testen (29 mm).
 - [ ] Oberfläche nur deutsch – Englisch / Übersetzungen bei Bedarf.
 

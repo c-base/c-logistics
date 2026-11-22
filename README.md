@@ -22,11 +22,14 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 ## Labels
 
 - Das Label ist so breit wie das 62-mm-Endlosband des Brother QL-700
-  (Querformat) und je nach Schrift nur 17–25 mm lang.
-- Links steht der QR-Code mit der Crate-URL, rechts daneben drei Zeilen, die
-  jeweils die volle Breite füllen: klein „c-base cargo“, groß „crate“, groß
-  die ID. Alles andere ändert sich zu oft; ein Label soll nie neu gedruckt
-  werden müssen.
+  (Querformat) und je nach Schrift nur gut 17–27 mm lang.
+- Links steht der QR-Code mit der Crate-URL und darunter das NFC-Logo
+  (Schriftzug „NFC“ in X-Scale mit drei Funkwellen, wie auf den
+  c-base-Karten). Rechts daneben drei Zeilen, die jeweils die volle Breite
+  füllen: klein „c-base cargo“, groß „crate“, groß die ID. Alles andere ändert
+  sich zu oft; ein Label soll nie neu gedruckt werden müssen.
+- Das NFC-Logo lässt sich mit `LABEL_NFC_LOGO=0` abschalten, etwa für Labels
+  ohne Tag; der QR-Code wird dann größer.
 - Schrift: Der Schriftzug steht in Bai Jamjuree Bold, die ID in Orbitron
   Black, weil Orbitron die Null durchstreicht und sie so nicht mit einem O
   verwechselt wird. Über `LABEL_FONT` lässt sich alles auf `orbitron` oder
@@ -37,8 +40,8 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   `/<ID>/label.png` und als einseitiges PDF unter `/<ID>/label.pdf`. Von
   welchem Gerät gedruckt wird, ist bewusst offen.
 - PDF drucken (erprobt am QL-570 mit dem freien `ptouch`-Treiber):
-  `lp -d QL-570 -o PageSize=Custom.62x32mm -o nopdfAutoRotate crate-0001.pdf`
-  - Die PDF-Seite ist 62 × 32 mm: das Label (25 mm) plus oben und unten gut
+  `lp -d QL-570 -o PageSize=Custom.62x33mm -o nopdfAutoRotate crate-0001.pdf`
+  - Die PDF-Seite ist 62 × 33 mm: das Label (26,5 mm) plus oben und unten gut
     3 mm Rand, die der Drucker nicht bedrucken kann. Die Länge in `PageSize`
     muss zur PDF-Seite passen, sonst wird das Label beschnitten.
   - Ohne `nopdfAutoRotate` und mit `PageSize=62mm` dreht CUPS die querformatige

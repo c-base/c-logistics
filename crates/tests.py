@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from PIL import Image, ImageOps
 from django.urls import reverse
 
-from .labels import FONTS, labels_ql_raster, public_url, render_label
+from .labels import FONTS, labels_ql_raster, nfc_logo, public_url, render_label
 from .models import Crate, Item, Photo, format_code
 
 
@@ -144,9 +144,9 @@ class CrateTests(TestCase):
         self.assertIn('crate-0001.pdf', response['Content-Disposition'])
         self.assertTrue(response.content.startswith(b'%PDF'))
         self.assertEqual(response.content.count(b'/Type /Page\n'), 1)
-        # 62 mm = 175,7 pt breit; 32 mm = 90,7 pt lang: Label (25 mm) plus 3 mm
-        # Rand oben und unten, die der Drucker nicht bedrucken kann
-        self.assertRegex(response.content, rb'/MediaBox \[ 0 0 175\.\d+ 90\.\d+ \]')
+        # 62 mm = 175,7 pt breit; 33 mm = 93,6 pt lang: Label (26,5 mm) plus gut
+        # 3 mm Rand oben und unten, die der Drucker nicht bedrucken kann
+        self.assertRegex(response.content, rb'/MediaBox \[ 0 0 175\.\d+ 93\.\d+ \]')
 
     def test_label_does_not_depend_on_changeable_crate_data(self):
         before = self.client.get(reverse('crates:label', args=[self.crate.code])).content
@@ -181,6 +181,23 @@ class CrateTests(TestCase):
         self.assertNotEqual(default, self.client.get(url, {'font': 'anybody'}).content)
         self.assertNotEqual(default, self.client.get(url, {'font': 'orbitron'}).content)
         self.assertEqual(default, self.client.get(url, {'font': 'gibtsnicht'}).content)
+
+    def test_nfc_logo_sits_below_the_qr_code_and_can_be_switched_off(self):
+        url = 'https://crates.c-base.org/10F0'
+        with_logo = render_label(url, '10F0')
+        without = render_label(url, '10F0', nfc=False)
+        self.assertEqual(with_logo.width, without.width)
+        # Unten links, unter dem QR-Code, steht mit Logo etwas und ohne nichts …
+        def ink(image, box):
+            return sum(ImageOps.invert(image.convert('L')).crop(box).tobytes())
+        lower_left = lambda image: (0, int(image.height * 0.78), int(image.width * 0.33), image.height)
+        self.assertGreater(ink(with_logo, lower_left(with_logo)), 0)
+        with override_settings(LABEL_NFC_LOGO=False):
+            self.assertEqual(render_label(url, '10F0').tobytes(), without.tobytes())
+        # … und das Logo ist so breit wie der QR-Code.
+        logo = nfc_logo(200)
+        self.assertEqual(logo.width, 200)
+        self.assertLess(logo.height, 80)
 
     def test_default_label_sets_the_number_in_orbitron(self):
         from .labels import _Typeface

@@ -223,6 +223,9 @@ PRINT_COPIES = int(os.environ.get('PRINT_COPIES') or 2)
 # 'anybody' (siehe crates/labels.py).
 LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')
 
+# NFC-Logo unter dem QR-Code auf dem Label: 1 = ja, 0 = nein
+LABEL_NFC_LOGO = (os.environ.get('LABEL_NFC_LOGO') or '1') == '1'
+
 # Fotos vom Inhalt der Crates. Sie werden nicht direkt vom Webserver, sondern
 # über eine Ansicht mit Anmeldung ausgeliefert (crates.views.PhotoFileView).
 MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT') or BASE_DIR / 'media')
