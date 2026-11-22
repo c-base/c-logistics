@@ -75,6 +75,8 @@ input[type=checkbox] { accent-color: #2a9fd6; }
 .check-inline { display: inline-flex; align-items: center; gap: 0.55rem; margin: 0; font-weight: 400; line-height: 1; cursor: pointer; }
 .check-inline input { width: 18px; height: 18px; margin: 0; flex: none; }
 .field-error { color: #ff5a4d; }
+/* Markierung „Needs attention“ in Liste und Detailansicht */
+.attention { flex: none; align-self: center; padding: 0.1rem 0.5rem; border: 1px solid #f80; border-radius: 0.25rem; color: #f80; font-size: 0.8rem; font-weight: 700; line-height: 1.4; text-transform: uppercase; white-space: nowrap; }
 
 .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 

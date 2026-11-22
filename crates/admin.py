@@ -10,8 +10,8 @@ class ItemInline(admin.TabularInline):
 
 @admin.register(Crate)
 class CrateAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'size', 'location', 'updated_at']
-    list_filter = ['size', 'location', 'responsible']
+    list_display = ['name', 'code', 'size', 'location', 'needs_attention', 'updated_at']
+    list_filter = ['needs_attention', 'size', 'location', 'responsible']
     search_fields = ['name', 'code', 'description', 'items__name']
     readonly_fields = ['code']
     filter_horizontal = ['responsible']

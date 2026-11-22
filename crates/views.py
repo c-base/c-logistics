@@ -73,12 +73,15 @@ class CrateListView(LoginRequiredMixin, generic.ListView):
             ).distinct()
         if self.request.GET.get('mine'):
             qs = qs.filter(responsible=self.request.user)
+        if self.request.GET.get('attention'):
+            qs = qs.filter(needs_attention=True)
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['query'] = self.request.GET.get('q', '').strip()
         context['mine'] = bool(self.request.GET.get('mine'))
+        context['attention'] = bool(self.request.GET.get('attention'))
         context['copies'] = settings.PRINT_COPIES
         context['max_copies'] = MAX_COPIES
         context['print_variants'] = [(key, label) for key, (label, _, _) in PrintDispatchView.variants.items()]

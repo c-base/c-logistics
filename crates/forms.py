@@ -25,7 +25,7 @@ class BootstrapFormMixin:
 class CrateForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Crate
-        fields = ['name', 'description', 'size', 'height_mm', 'color', 'responsible', 'location']
+        fields = ['name', 'description', 'size', 'height_mm', 'color', 'responsible', 'location', 'needs_attention']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
             'responsible': forms.CheckboxSelectMultiple,

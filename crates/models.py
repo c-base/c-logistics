@@ -57,6 +57,10 @@ class Crate(models.Model):
         Location, verbose_name='Lagerort', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='crates',
     )
+    needs_attention = models.BooleanField(
+        'Needs attention', default=False,
+        help_text='Hier stimmt etwas nicht, z. B. ist der Inhalt zu groß für die Kiste.',
+    )
     created_at = models.DateTimeField('Angelegt', auto_now_add=True)
     updated_at = models.DateTimeField('Geändert', auto_now=True)
 

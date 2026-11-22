@@ -15,6 +15,12 @@
       <span>nur meine</span>
     </label>
   </div>
+  <div class="col-auto">
+    <label class="check-inline">
+      <input type="checkbox" name="attention" value="1" id="filter-attention" {% if attention %}checked{% endif %}>
+      <span>needs attention</span>
+    </label>
+  </div>
   <div class="col-auto ms-auto">
     <button class="btn btn-secondary">Suchen</button>
   </div>
@@ -36,6 +42,7 @@
         <div class="d-flex gap-2">
           <span class="code">{{ crate.code }}</span>
           <strong class="text-white">{{ crate.name }}</strong>
+          {% if crate.needs_attention %}<span class="attention ms-auto">Needs attention</span>{% endif %}
         </div>
         <div class="muted">
           {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
@@ -94,9 +101,9 @@
 </script>
 {% if is_paginated %}
   <p class="d-flex gap-3 align-items-center mt-3">
-    {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
+    {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}{% if attention %}&attention=1{% endif %}&page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
     <span class="muted">Seite {{ page_obj.number }} von {{ paginator.num_pages }}</span>
-    {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.next_page_number }}">weiter →</a>{% endif %}
+    {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}{% if attention %}&attention=1{% endif %}&page={{ page_obj.next_page_number }}">weiter →</a>{% endif %}
   </p>
 {% endif %}
 {% endblock %}

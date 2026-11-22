@@ -3,6 +3,7 @@
 {% block content %}
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
   <h1 class="flex-grow-1 m-0">{{ crate.name }}</h1>
+  {% if crate.needs_attention %}<span class="attention">Needs attention</span>{% endif %}
   <a class="btn btn-secondary" href="{% url 'crates:update' crate.code %}">Bearbeiten</a>
 </div>
 <div class="card transparent">

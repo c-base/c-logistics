@@ -132,6 +132,25 @@ class CrateTests(TestCase):
     def test_dev_null_belongs_to_unbecannt(self):
         self.assertEqual([str(member) for member in Crate.objects.get(code='0000').responsible.all()], ['unbecannt'])
 
+    def test_needs_attention_is_set_in_the_form_shown_and_filterable(self):
+        other = Crate.objects.create(name='Unauffällig')
+        self.assertNotContains(self.client.get(self.crate.get_absolute_url()), 'class="attention"')
+        data = {'name': self.crate.name, 'size': self.crate.size, 'needs_attention': 'on'}
+        self.client.post(reverse('crates:update', args=[self.crate.code]), data)
+        self.crate.refresh_from_db()
+        self.assertTrue(self.crate.needs_attention)
+        self.assertContains(self.client.get(self.crate.get_absolute_url()), 'class="attention"')
+        response = self.client.get(reverse('crates:list'))
+        self.assertContains(response, 'class="attention', count=1)
+        self.assertIn(other, response.context['object_list'])
+        response = self.client.get(reverse('crates:list'), {'attention': '1'})
+        self.assertEqual(list(response.context['object_list']), [self.crate])
+        # ohne Haken im Formular ist die Markierung wieder weg
+        del data['needs_attention']
+        self.client.post(reverse('crates:update', args=[self.crate.code]), data)
+        self.crate.refresh_from_db()
+        self.assertFalse(self.crate.needs_attention)
+
     def test_add_edit_and_remove_item(self):
         self.client.post(reverse('crates:item-create', args=[self.crate.code]), {'name': 'Netzteil', 'quantity': 2})
         item = self.crate.items.get(name='Netzteil')
