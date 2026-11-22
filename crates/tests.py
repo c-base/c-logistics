@@ -130,6 +130,13 @@ class CrateTests(TestCase):
         response = self.client.get(self.crate.get_absolute_url())
         self.assertContains(response, f'id="copy-link" data-link="https://crates.c-base.org/{self.crate.code}"')
 
+    def test_detail_offers_the_ql_print_file_of_the_list(self):
+        response = self.client.get(self.crate.get_absolute_url())
+        link = f'{reverse("crates:labels")}?c={self.crate.code}&amp;format=ql'
+        self.assertContains(response, f'href="{link}"')
+        download = self.client.get(link.replace('&amp;', '&'))
+        self.assertIn(f'attachment; filename="crate-{self.crate.code}-ql700.bin"', download['Content-Disposition'])
+
     def test_label_is_landscape_png_in_tape_width(self):
         response = self.client.get(reverse('crates:label', args=[self.crate.code]))
         self.assertEqual(response['Content-Type'], 'image/png')

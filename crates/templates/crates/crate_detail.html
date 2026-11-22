@@ -120,6 +120,7 @@
       <div class="actions">
         <a class="btn btn-secondary" href="{% url 'crates:label-pdf' crate.code %}?download=1" title="PDF mit {{ copies }} Seite{{ copies|pluralize:"n" }}">Label als PDF{% if copies > 1 %} ({{ copies }}×){% endif %}</a>
         <a class="btn btn-secondary" href="{% url 'crates:label' crate.code %}?download=1">Label als PNG</a>
+        <a class="btn btn-secondary" href="{% url 'crates:labels' %}?c={{ crate.code }}&amp;format=ql" title="Brother-Rasterdaten mit Schnitt, roh an den Drucker: lp -o raw">Label als QL-Druckdatei{% if copies > 1 %} ({{ copies }}×){% endif %}</a>
       </div>
     </div>
   </div>

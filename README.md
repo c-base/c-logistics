@@ -60,7 +60,8 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
     enthält. Sie geht ohne Treiber roh an den Drucker:
     `lp -d Brother_QL-700 -o raw crates-0001-0003-ql700.bin` oder direkt
     `cat crates-0001-0003-ql700.bin > /dev/usb/lp0`. Nur für 62-mm- und
-    29-mm-Endlosband.
+    29-mm-Endlosband. Dieselbe Datei für eine einzelne Crate gibt es auf
+    ihrer Detailseite unter „Label als QL-Druckdatei“.
 - `PUBLIC_BASE_URL` (Umgebungsvariable) legt die Adresse fest, die in QR-Code
   und NFC-Tag steht. Sie muss feststehen, bevor Labels gedruckt werden.
 - `LABEL_WIDTH_PX` ist die Druckbreite der Rolle in Pixeln und damit die
