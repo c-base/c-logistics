@@ -147,6 +147,17 @@ Beim Provider als Redirect-URI eintragen: `<PUBLIC_BASE_URL>/accounts/oidc/callb
 
 - Beim ersten Login wird der Member automatisch angelegt und danach über das
   `sub`-Claim wiedererkannt; Name und E-Mail werden bei jedem Login aktualisiert.
+- Gibt es beim ersten Login schon ein lokales Konto mit demselben Benutzernamen
+  (`preferred_username`), übernimmt der Member dieses Konto samt Rechten und
+  Crates, statt ein zweites („alice-2“) zu bekommen. Das verlässt sich darauf,
+  dass der Provider Benutzernamen nur an ihre Inhaber vergibt – ein lokales
+  Konto `admin` gehört also demjenigen, der beim Provider `admin` heißt.
+  Ausgenommen sind „unbecannt“ und Konten, die schon zu einem anderen
+  OIDC-Konto gehören.
+- Früher entstand in diesem Fall ein Doppelkonto. Solche alten Paare führt
+  `python manage.py merge_duplicate_members` zusammen: ohne Angabe zeigt es
+  sie nur an, mit `--apply` hängt es Crates, Fotos, Gruppen und die
+  SSO-Verknüpfung an das lokale Konto um und löscht das Doppelkonto.
 - Ein Member kann erst als Verantwortlicher gewählt werden, nachdem er sich
   einmal angemeldet hat.
 - Die Login-Seite zeigt den Knopf für den Provider und darunter das Formular

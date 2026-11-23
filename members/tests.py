@@ -35,12 +35,71 @@ class SyncMemberTests(TestCase):
         self.assertEqual(member.username, 'alice')
         self.assertEqual(member.last_name, 'Neu')
 
-    def test_does_not_take_over_local_account_with_same_username(self):
+    def test_takes_over_local_account_with_same_username(self):
         local = Member.objects.create_superuser('alice', password='pw')
         member = sync_member(CLAIMS)
-        self.assertNotEqual(member.pk, local.pk)
-        self.assertEqual(member.username, 'alice-2')
-        self.assertFalse(member.is_superuser)
+        self.assertEqual(member.pk, local.pk)
+        self.assertEqual(member.oidc_sub, 'abc-123')
+        self.assertEqual(member.email, 'alice@example.org')
+        # Rechte und lokales Passwort bleiben
+        self.assertTrue(member.is_superuser)
+        self.assertTrue(member.check_password('pw'))
+        self.assertEqual(Member.objects.filter(username__startswith='alice').count(), 1)
+
+    def test_account_of_another_oidc_user_is_not_taken_over(self):
+        first = sync_member(CLAIMS)
+        second = sync_member({**CLAIMS, 'sub': 'other-456'})
+        self.assertNotEqual(second.pk, first.pk)
+        self.assertEqual(second.username, 'alice-2')
+        first.refresh_from_db()
+        self.assertEqual(first.oidc_sub, 'abc-123')
+
+    def test_placeholder_unbecannt_is_never_taken_over(self):
+        unknown = Member.unknown()
+        member = sync_member({'sub': 'evil', 'preferred_username': Member.UNKNOWN_USERNAME})
+        self.assertNotEqual(member.pk, unknown.pk)
+        self.assertEqual(member.username, 'unbecannt-2')
+        unknown.refresh_from_db()
+        self.assertIsNone(unknown.oidc_sub)
+        self.assertFalse(unknown.is_active)
+
+    def test_command_merges_old_duplicate_into_the_local_account(self):
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+        from crates.models import Crate, Photo
+        import io
+
+        local = Member.objects.create_superuser('alice', password='pw')
+        duplicate = Member.objects.create(username='alice-2', oidc_sub='abc-123', email='alice@example.org', first_name='Alice')
+        duplicate.groups.add(Group.objects.get(name=Member.MANAGER_GROUP))
+        # ein fremdes Konto, das zufällig so aussieht, aber zu einem verknüpften „bob“ gehört
+        Member.objects.create(username='bob', oidc_sub='bob-1')
+        other = Member.objects.create(username='bob-2', oidc_sub='bob-2')
+        shared, own = Crate.objects.create(name='Beide'), Crate.objects.create(name='Nur Doppel')
+        shared.responsible.set([local, duplicate])
+        own.responsible.set([duplicate, other])
+        photo = Photo.objects.create(crate=own, uploaded_by=duplicate)
+
+        out = io.StringIO()
+        call_command('merge_duplicate_members', stdout=out)
+        self.assertIn('alice-2 -> alice (2 Crates am Doppelkonto)', out.getvalue())
+        self.assertNotIn('bob', out.getvalue())
+        self.assertTrue(Member.objects.filter(username='alice-2').exists())
+
+        call_command('merge_duplicate_members', '--apply', stdout=io.StringIO())
+        self.assertFalse(Member.objects.filter(username='alice-2').exists())
+        local.refresh_from_db()
+        self.assertEqual((local.oidc_sub, local.email, local.first_name), ('abc-123', 'alice@example.org', 'Alice'))
+        self.assertTrue(local.is_superuser)
+        self.assertTrue(local.check_password('pw'))
+        self.assertTrue(local.is_manager)
+        self.assertEqual(list(shared.responsible.all()), [local])
+        self.assertEqual(set(own.responsible.all()), {local, other})
+        photo.refresh_from_db()
+        self.assertEqual(photo.uploaded_by, local)
+        # der nächste SSO-Login landet im zusammengeführten Konto
+        self.assertEqual(sync_member(CLAIMS).pk, local.pk)
+        self.assertTrue(Member.objects.filter(username='bob-2').exists())
 
     def test_falls_back_to_name_claim(self):
         member = sync_member({'sub': 'x', 'name': 'Bob van Beispiel'})
