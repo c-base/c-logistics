@@ -31,9 +31,10 @@ class ResponsibleWidget(forms.CheckboxSelectMultiple):
 class CrateForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Crate
-        fields = ['name', 'description', 'size', 'height_mm', 'color', 'responsible', 'location', 'needs_attention']
+        fields = ['name', 'description', 'size', 'height_mm', 'color', 'responsible', 'location', 'needs_attention', 'attention_note']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
+            'attention_note': forms.Textarea(attrs={'rows': 2}),
             'responsible': ResponsibleWidget,
         }
 

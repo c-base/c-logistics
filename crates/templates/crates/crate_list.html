@@ -44,6 +44,7 @@
           <strong class="text-white">{{ crate.name }}</strong>
           {% if crate.needs_attention %}<span class="attention ms-auto">Needs attention</span>{% endif %}
         </div>
+        {% if crate.attention_note %}<div class="attention-note">{{ crate.attention_note|truncatechars:120 }}</div>{% endif %}
         <div class="muted">
           {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
           · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}

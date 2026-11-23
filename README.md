@@ -28,7 +28,8 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - Jede Crate hat einen Haken „Needs attention“ für alles, was jemand in die
   Hand nehmen muss, z. B. wenn der Inhalt zu groß für die Kiste ist. Markierte
   Crates sind in Liste und Detailansicht gekennzeichnet; die Liste lässt sich
-  auf sie einschränken.
+  auf sie einschränken. Zum Haken gehört eine Bemerkung, was genau das Problem
+  ist. Sie wird gelöscht, sobald der Haken herausgenommen wird.
 - Lagerorte sind optional, solange es noch keine beschrifteten Lagerflächen gibt.
 
 ## Labels

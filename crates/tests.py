@@ -188,6 +188,23 @@ class CrateTests(TestCase):
         self.crate.refresh_from_db()
         self.assertFalse(self.crate.needs_attention)
 
+    def test_attention_note_says_what_the_problem_is_and_goes_away_with_the_flag(self):
+        url = reverse('crates:update', args=[self.crate.code])
+        data = {'name': self.crate.name, 'size': self.crate.size, 'attention_note': 'Deckel geht nicht mehr zu'}
+        self.client.post(url, {**data, 'needs_attention': 'on'})
+        self.crate.refresh_from_db()
+        self.assertEqual(self.crate.attention_note, 'Deckel geht nicht mehr zu')
+        self.assertContains(self.client.get(self.crate.get_absolute_url()), 'Deckel geht nicht mehr zu')
+        self.assertContains(self.client.get(reverse('crates:list')), 'Deckel geht nicht mehr zu')
+        # die Suche findet die Crate auch über die Bemerkung
+        response = self.client.get(reverse('crates:list'), {'q': 'deckel'})
+        self.assertEqual(list(response.context['object_list']), [self.crate])
+        # ohne Haken bleibt keine Bemerkung stehen
+        self.client.post(url, data)
+        self.crate.refresh_from_db()
+        self.assertEqual(self.crate.attention_note, '')
+        self.assertNotContains(self.client.get(self.crate.get_absolute_url()), 'Deckel geht nicht mehr zu')
+
     def test_add_edit_and_remove_item(self):
         self.client.post(reverse('crates:item-create', args=[self.crate.code]), {'name': 'Netzteil', 'quantity': 2})
         item = self.crate.items.get(name='Netzteil')

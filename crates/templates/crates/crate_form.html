@@ -13,6 +13,20 @@
   </div>
 </form>
 <script>
+  // Die Bemerkung zu „Needs attention“ gibt es nur, solange der Haken gesetzt ist.
+  (function () {
+    var flag = document.getElementById('id_needs_attention'), note = document.getElementById('id_attention_note');
+    if (!flag || !note) return;
+    var row = note.closest('.mb-3');
+    function sync() { row.hidden = !flag.checked; }
+    flag.addEventListener('change', function () {
+      sync();
+      if (flag.checked) note.focus();
+    });
+    sync();
+  })();
+</script>
+<script>
   // „unbecannt“ ist angehakt, solange kein Member gewählt ist, und geht von selbst
   // weg, sobald einer gewählt wird. Wer „unbecannt“ anhakt, nimmt die anderen heraus.
   (function () {

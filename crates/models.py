@@ -61,6 +61,10 @@ class Crate(models.Model):
         'Needs attention', default=False,
         help_text='Hier stimmt etwas nicht, z. B. ist der Inhalt zu groß für die Kiste.',
     )
+    attention_note = models.TextField(
+        'Was ist das Problem?', blank=True,
+        help_text='Bemerkung zu „Needs attention“. Verschwindet, sobald der Haken herausgenommen wird.',
+    )
     created_at = models.DateTimeField('Angelegt', auto_now_add=True)
     updated_at = models.DateTimeField('Geändert', auto_now=True)
 
@@ -81,6 +85,9 @@ class Crate(models.Model):
         return format_code(number)
 
     def save(self, *args, **kwargs):
+        # Die Bemerkung gehört zum Haken: ist das Problem erledigt, ist sie hinfällig.
+        if not self.needs_attention:
+            self.attention_note = ''
         if self.code:
             return super().save(*args, **kwargs)
         # Zwei gleichzeitig angelegte Crates könnten dieselbe Nummer ziehen; dann neu versuchen.

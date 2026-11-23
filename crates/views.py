@@ -71,6 +71,7 @@ class CrateListView(LoginRequiredMixin, generic.ListView):
                 Q(name__icontains=query)
                 | Q(code=normalize_code(query))
                 | Q(description__icontains=query)
+                | Q(attention_note__icontains=query)
                 | Q(items__name__icontains=query)
             ).distinct()
         if self.request.GET.get('mine'):

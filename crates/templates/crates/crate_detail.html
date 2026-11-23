@@ -6,6 +6,7 @@
   {% if crate.needs_attention %}<span class="attention">Needs attention</span>{% endif %}
   <a class="btn btn-secondary" href="{% url 'crates:update' crate.code %}">Bearbeiten</a>
 </div>
+{% if crate.attention_note %}<p class="attention-note">{{ crate.attention_note|linebreaksbr }}</p>{% endif %}
 <div class="card transparent">
   <div class="card-body">
     <dl class="row mb-0">
