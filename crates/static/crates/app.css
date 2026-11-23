@@ -19,7 +19,7 @@ body::before {
               url("../c-base-bootstrap/img/bg.jpg") center center / cover no-repeat;
 }
 
-.container { max-width: 960px; }
+.container { max-width: 1200px; }
 
 .navbar-brand { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .navbar button.nav-link { background: none; border: 0; }
