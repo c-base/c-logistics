@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{% if object %}{{ object.name }} bearbeiten{% else %}Neue Crate{% endif %}{% endblock %}
 {% block content %}
 <h1>{% if object %}{{ object.name }} bearbeiten{% else %}Neue Crate{% endif %}</h1>
@@ -12,6 +13,10 @@
     </div>
   </div>
 </form>
+<script src="{% static 'crates/tagpicker.js' %}"></script>
+<script>
+  initTagPicker(document.getElementById('id_tags'), { placeholder: 'Tag hinzufügen: tippen oder auswählen …' });
+</script>
 <script>
   // Die Bemerkung zu „Needs attention“ gibt es nur, solange der Haken gesetzt ist.
   (function () {

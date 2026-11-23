@@ -30,6 +30,34 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   Crates sind in Liste und Detailansicht gekennzeichnet; die Liste lässt sich
   auf sie einschränken. Zum Haken gehört eine Bemerkung, was genau das Problem
   ist. Sie wird gelöscht, sobald der Haken herausgenommen wird.
+- Crates tragen Tags mit Bereich, geschrieben `bereich:wert`, z. B. `eva:40c3`
+  für eine Veranstaltung oder `transport:1`, `transport:2` für die Fuhren
+  dorthin. Tags sind eine feste Auswahl: Im Formular der Crate stehen die
+  gewählten als Haken da, weitere kommen über ein Feld dazu, das die übrigen
+  zum Anklicken aufklappt und beim Tippen eingrenzt. Eine Crate kann mehrere
+  Tags desselben Bereichs haben.
+- Die Auswahl pflegen Manager unter „tags“ in der Navigation (`/tags/`):
+  anlegen (auch mehrere auf einmal), umbenennen, löschen. Beim Umbenennen
+  behalten die Crates das Tag, beim Löschen verlieren sie es. Im Admin geht
+  dasselbe unter „Tags“.
+- Die Liste filtert nach Tags: Unter der Suche lassen sich Tags auf dieselbe
+  Art hinzufügen wie im Formular; jedes gewählte gilt sofort. Mehrere Tags
+  schränken weiter ein (die Crate muss alle tragen). Per Adresse:
+  `/?tag=eva:40c3&tag=transport:1`. Die gefilterte Liste zeigt die Anzahl;
+  zusammen mit „alle auswählen“ und der Druckleiste werden daraus Labels und
+  Karten für genau diese Crates. Die Suche findet Tags ebenfalls.
+- Mehrere Crates auf einmal taggen: in der Liste anhaken, unten in der Leiste
+  das Tag wählen und „Tag setzen“ oder „Tag entfernen“ drücken.
+  Alles andere an den Crates bleibt, wie es ist.
+- Packliste: Über der Liste stehen die Verweise „Packliste“ und „CSV“ für alle
+  Crates, auf die Suche und Filter gerade passen, über alle Seiten hinweg
+  (`/packlist/?tag=eva:40c3`, mit `format=csv` als Datei). Für einzelne
+  angehakte Crates gibt es beides auch in der Druckleiste. Die Packliste ist
+  eine Seite zum Ausdrucken mit Kästchen zum Abhaken; die CSV-Datei ist mit
+  Semikolon getrennt und öffnet sich so direkt in Excel und LibreOffice.
+- Mit `format=md` (Verweis „Markdown“) kommt die Packliste als Markdown-Datei
+  mit einer Checkliste zum Abhaken (`- [ ]`), etwa für Wiki, Pad oder Issue;
+  die ID verweist auf die Crate.
 - Lagerorte sind optional, solange es noch keine beschrifteten Lagerflächen gibt.
 
 ## Labels

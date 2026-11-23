@@ -4,6 +4,7 @@ from django.contrib.auth.models import Group
 from django.core import mail
 from django.utils import timezone
 from unittest import mock
+import csv
 import io
 import tempfile
 from pathlib import Path
@@ -14,7 +15,7 @@ from PIL import Image, ImageOps
 from django.urls import reverse
 
 from .labels import FONTS, labels_ql_raster, nfc_logo, public_url, render_label
-from .models import Crate, Item, Photo, format_code
+from .models import Crate, Item, Photo, Tag, format_code
 
 
 # Unabhängig von einer lokalen .env.
@@ -202,6 +203,222 @@ class CrateTests(TestCase):
         self.assertEqual(list(crate.responsible.all()), [dave])
         response = self.client.get(reverse('crates:update', args=[crate.code]))
         self.assertIn('dave (noch nie angemeldet)', self.shown_members(response))
+
+    def make_tags(self, names):
+        return [Tag.objects.get_or_create(scope=scope, value=value)[0] for scope, value in Tag.parse_many(names)]
+
+    def tag(self, crate, names):
+        """Speichert die Crate über das Formular mit genau diesen Tags."""
+        responsible = list(crate.responsible.values_list('pk', flat=True))
+        tags = [tag.pk for tag in self.make_tags(names)]
+        data = {'name': crate.name, 'size': crate.size, 'responsible': responsible, 'tags': tags}
+        return self.client.post(reverse('crates:update', args=[crate.code]), data)
+
+    def listed(self, **query):
+        return list(self.client.get(reverse('crates:list'), query).context['object_list'])
+
+    def test_tags_are_picked_from_the_fixed_selection_and_shown(self):
+        self.make_tags('eva:40c3 eva:camp transport:1')
+        form = self.client.get(reverse('crates:update', args=[self.crate.code])).context['form']
+        self.assertEqual([label for _, label in form.fields['tags'].choices], ['eva:40c3', 'eva:camp', 'transport:1'])
+        self.assertLess(list(form.fields).index('tags'), list(form.fields).index('needs_attention'))
+        self.tag(self.crate, 'eva:40c3 transport:1')
+        self.assertEqual([str(tag) for tag in self.crate.tags.all()], ['eva:40c3', 'transport:1'])
+        response = self.client.get(self.crate.get_absolute_url())
+        self.assertContains(response, f'href="{reverse("crates:list")}?tag=transport%3A1"')
+        self.assertContains(self.client.get(reverse('crates:list')), '<span class="scope">eva:</span>40c3')
+        # im Formular entsteht kein neues Tag
+        data = {'name': self.crate.name, 'size': self.crate.size, 'tags': [9999]}
+        response = self.client.post(reverse('crates:update', args=[self.crate.code]), data)
+        self.assertContains(response, 'field-error')
+        self.assertEqual(Tag.objects.count(), 3)
+
+    def test_what_is_not_a_scoped_tag_is_rejected(self):
+        for bad in ['40c3', 'eva:', ':40c3', 'eva:40c3:x', 'eva:40 c3', 'e' * 31 + ':x']:
+            with self.assertRaises(ValueError, msg=bad):
+                Tag.parse_many(f'transport:1 {bad}')
+        self.assertEqual(Tag.parse_many('EVA:40c3, transport:1  eva:40c3'), [('eva', '40c3'), ('transport', '1')])
+
+    def test_tags_stay_when_no_crate_carries_them(self):
+        self.tag(self.crate, 'eva:40c3 transport:1')
+        self.tag(self.crate, '')
+        self.assertEqual(self.crate.tags.count(), 0)
+        self.assertEqual([str(tag) for tag in Tag.objects.all()], ['eva:40c3', 'transport:1'])
+        self.assertContains(self.client.get(reverse('crates:list')), '<option value="transport:1">')
+
+    def manage(self, **data):
+        return self.client.post(reverse('crates:tags'), data, follow=True)
+
+    def test_managers_add_rename_and_delete_tags(self):
+        url = reverse('crates:tags')
+        # nur Manager: kein Verweis, kein Zugriff
+        self.assertNotContains(self.client.get(reverse('crates:list')), f'href="{url}"')
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.client.post(url, {'action': 'add', 'names': 'eva:40c3'}).status_code, 403)
+        self.assertEqual(Tag.objects.count(), 0)
+        self.member.groups.add(Group.objects.get(name='Manager'))
+        self.assertContains(self.client.get(reverse('crates:list')), f'href="{url}"')
+        self.assertContains(self.client.get(reverse('crates:create')), 'Tags verwalten')
+
+        response = self.manage(action='add', names='EVA:40c3 transport:1, transport:2')
+        self.assertContains(response, 'Angelegt: eva:40c3, transport:1, transport:2.')
+        self.assertContains(self.manage(action='add', names='eva:40c3'), 'Diese Tags gab es schon.')
+        response = self.manage(action='add', names='transport:3 ohnebereich')
+        self.assertContains(response, 'ist kein Tag')
+        self.assertContains(response, 'value="transport:3 ohnebereich"')
+        self.assertEqual([str(tag) for tag in Tag.objects.all()], ['eva:40c3', 'transport:1', 'transport:2'])
+
+        self.tag(self.crate, 'eva:40c3 transport:1')
+        self.assertContains(self.client.get(url), '1 Crate</a>')
+        one = Tag.find('transport:1')
+        self.assertContains(self.manage(action='rename', tag=one.pk, name='Transport:Lkw'), 'transport:1 heißt jetzt transport:lkw.')
+        self.assertEqual([str(tag) for tag in self.crate.tags.all()], ['eva:40c3', 'transport:lkw'])
+        self.assertContains(self.manage(action='rename', tag=one.pk, name='transport:2'), 'transport:2 gibt es schon.')
+        self.assertContains(self.manage(action='rename', tag=one.pk, name='unsinn'), 'ist kein Tag')
+        self.assertEqual(str(Tag.objects.get(pk=one.pk)), 'transport:lkw')
+
+        self.assertContains(self.manage(action='delete', tag=one.pk), 'transport:lkw gelöscht.')
+        self.assertEqual([str(tag) for tag in self.crate.tags.all()], ['eva:40c3'])
+        self.assertEqual(self.client.post(url, {'action': 'delete', 'tag': one.pk}).status_code, 404)
+
+    def test_list_filters_by_tag(self):
+        self.tag(self.crate, 'eva:40c3 transport:1')
+        self.tag(self.other_crate, 'eva:40c3 transport:2')
+        self.assertEqual(self.listed(tag='eva:40c3'), [self.crate, self.other_crate])
+        self.assertEqual(self.listed(tag='Transport:2'), [self.other_crate])
+        self.assertEqual(self.listed(tag=['eva:40c3', 'transport:1']), [self.crate])
+        # auch zwei Tags desselben Bereichs: Die Crate muss dann beide tragen
+        self.assertEqual(self.listed(tag=['transport:1', 'transport:2']), [])
+        self.bulk([self.crate], 'transport:2')
+        self.assertEqual(self.listed(tag=['transport:1', 'transport:2']), [self.crate])
+        response = self.client.get(reverse('crates:list'), {'tag': ['', 'transport:2', 'Transport:2', 'eva:40c3']})
+        self.assertEqual(response.context['selected_tags'], ['transport:2', 'eva:40c3'])
+        self.assertContains(response, '<input type="checkbox" name="tag" value="transport:2" checked>')
+        self.assertContains(response, '<input type="checkbox" name="tag" value="transport:1">')
+        self.crate.tags.remove(Tag.find('transport:2'))
+        self.assertEqual(self.listed(tag='transport:9'), [])
+        self.assertEqual(self.listed(tag='unsinn'), [])
+        self.assertEqual(self.listed(tag=''), list(Crate.objects.all()))
+        # die Suche findet Tags auch, und beide Filter greifen zusammen
+        self.assertEqual(self.listed(q='40c3'), [self.crate, self.other_crate])
+        self.assertEqual(self.listed(q='transport'), [self.crate, self.other_crate])
+        self.assertEqual(self.listed(tag='eva:40c3', mine='1'), [self.crate])
+        response = self.client.get(reverse('crates:list'), {'tag': 'eva:40c3'})
+        self.assertContains(response, '2 Crates mit')
+        self.assertContains(response, '<input type="checkbox" name="tag" value="eva:40c3" checked>')
+
+    def test_paging_keeps_the_filters(self):
+        with mock.patch('crates.views.CrateListView.paginate_by', 1):
+            self.tag(self.crate, 'eva:40c3')
+            self.tag(self.other_crate, 'eva:40c3')
+            response = self.client.get(reverse('crates:list'), {'tag': 'eva:40c3', 'q': 'e'})
+            self.assertContains(response, 'href="?tag=eva%3A40c3&amp;q=e&amp;page=2"')
+            response = self.client.get(reverse('crates:list'))
+            self.assertContains(response, 'href="?page=2"')
+
+    def bulk(self, crates, tags, action='add', create=True, **extra):
+        if create:
+            self.make_tags(tags)
+        data = {'c': [crate.code for crate in crates], 'tags': tags, 'action': action, **extra}
+        return self.client.post(reverse('crates:bulk-tag'), data, follow=True)
+
+    def tags_of(self, crate):
+        return [str(tag) for tag in crate.tags.all()]
+
+    def test_tags_are_set_and_removed_on_all_picked_crates(self):
+        self.tag(self.crate, 'eva:40c3')
+        response = self.bulk([self.crate, self.other_crate], 'Transport:1 eva:40c3', next='/?tag=eva%3A40c3')
+        self.assertEqual(response.redirect_chain, [('/?tag=eva%3A40c3', 302)])
+        self.assertContains(response, 'transport:1, eva:40c3 an 2 Crates gesetzt.')
+        self.assertEqual(self.tags_of(self.crate), ['eva:40c3', 'transport:1'])
+        self.assertEqual(self.tags_of(self.other_crate), ['eva:40c3', 'transport:1'])
+        # die Verantwortlichen bleiben, anders als beim Speichern über das Formular ohne Auswahl
+        self.assertEqual(list(self.other_crate.responsible.all()), [self.other])
+        # die Leiste bietet die Tags zur Auswahl an
+        self.assertContains(self.client.get(reverse('crates:list')), 'id="bulk-tags"')
+
+        response = self.bulk([self.other_crate], 'transport:1', action='remove')
+        self.assertContains(response, 'transport:1 von 1 Crate entfernt.')
+        self.assertEqual(self.tags_of(self.other_crate), ['eva:40c3'])
+        self.assertEqual(self.tags_of(self.crate), ['eva:40c3', 'transport:1'])
+        self.bulk([self.crate], 'transport:1', action='remove')
+        # das Tag selbst bleibt in der Auswahl
+        self.assertTrue(Tag.objects.filter(scope='transport', value='1').exists())
+
+    def test_bulk_tagging_needs_crates_and_a_known_tag(self):
+        self.make_tags('eva:40c3')
+        self.assertContains(self.bulk([], 'eva:40c3'), 'Bitte Crates auswählen')
+        self.assertContains(self.bulk([self.crate], ''), 'Bitte Crates auswählen')
+        response = self.bulk([self.crate], 'eva:40c3 transport:9 ohnebereich', create=False)
+        self.assertContains(response, 'Dieses Tag gibt es nicht: transport:9, ohnebereich.')
+        self.assertEqual(self.tags_of(self.crate), [])
+        self.assertEqual(Tag.objects.count(), 1)
+        # fremde Adressen als Rücksprungziel werden nicht angenommen
+        response = self.bulk([self.crate], 'eva:40c3', next='https://evil.example.org/')
+        self.assertEqual(response.redirect_chain, [(reverse('crates:list'), 302)])
+        self.assertEqual(self.tags_of(self.crate), ['eva:40c3'])
+        self.assertEqual(self.client.get(reverse('crates:bulk-tag')).status_code, 405)
+        self.client.logout()
+        self.assertEqual(self.client.post(reverse('crates:bulk-tag'), {'c': ['0002'], 'tags': 'eva:40c3'}).status_code, 302)
+        self.assertEqual(self.tags_of(self.other_crate), [])
+
+    def test_packlist_for_a_filter_or_for_picked_crates(self):
+        url = reverse('crates:packlist')
+        self.bulk([self.crate, self.other_crate], 'eva:40c3')
+        self.bulk([self.crate], 'transport:1')
+        response = self.client.get(url, {'tag': 'eva:40c3'})
+        self.assertEqual(response.context['crates'], [self.crate, self.other_crate])
+        self.assertContains(response, '<h1>Packliste eva:40c3</h1>')
+        self.assertContains(response, 'Kabelkiste')
+        self.assertContains(response, 'href="/?tag=eva%3A40c3"')
+        self.assertContains(response, 'href="?tag=eva%3A40c3&amp;format=csv"')
+        self.assertEqual(self.client.get(url, {'tag': ['eva:40c3', 'transport:1']}).context['crates'], [self.crate])
+        # angehakte Crates aus der Druckleiste
+        response = self.client.get(reverse('crates:print'), {'what': 'packlist', 'c': [self.other_crate.code], 'copies': '2'}, follow=True)
+        self.assertEqual(response.context['crates'], [self.other_crate])
+        self.assertContains(response, '<h1>Packliste</h1>')
+        self.assertContains(self.client.get(reverse('crates:list'), {'tag': 'eva:40c3'}), f'href="{url}?tag=eva%3A40c3"')
+
+    @override_settings(PUBLIC_BASE_URL='https://crates.c-base.org')
+    def test_packlist_as_csv(self):
+        self.bulk([self.crate, self.other_crate], 'eva:40c3 transport:1')
+        self.crate.name, self.crate.needs_attention, self.crate.attention_note = '=SUMME(A1)', True, 'zu; voll'
+        self.crate.save()
+        response = self.client.get(reverse('crates:packlist'), {'tag': 'eva:40c3', 'format': 'csv'})
+        self.assertEqual(response['Content-Type'], 'text/csv; charset=utf-8')
+        self.assertIn('filename="crates-eva-40c3.csv"', response['Content-Disposition'])
+        text = response.content.decode('utf-8')
+        self.assertTrue(text.startswith('\ufeffID;Bezeichnung;'))
+        rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff')), delimiter=';'))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[1], [
+            '0001', "'=SUMME(A1)", '600 × 400 mm', '', '', 'alice', '', 'eva:40c3 transport:1',
+            'ja', 'zu; voll', '1', 'https://crates.c-base.org/0001',
+        ])
+        self.assertEqual(rows[2][5:9], ['bob', '', 'eva:40c3 transport:1', ''])
+        response = self.client.get(reverse('crates:print'), {'what': 'packlist-csv', 'c': ['0002']}, follow=True)
+        self.assertIn('filename="crates-liste.csv"', response['Content-Disposition'])
+
+    @override_settings(PUBLIC_BASE_URL='https://crates.c-base.org')
+    def test_packlist_as_markdown(self):
+        self.bulk([self.crate, self.other_crate], 'eva:40c3')
+        self.crate.name, self.crate.height_mm = 'Kabel *2* [neu]', 220
+        self.crate.needs_attention, self.crate.attention_note = True, 'Deckel fehlt\nund zu voll'
+        self.crate.save()
+        response = self.client.get(reverse('crates:packlist'), {'tag': 'eva:40c3', 'format': 'md'})
+        self.assertEqual(response['Content-Type'], 'text/markdown; charset=utf-8')
+        self.assertIn('filename="crates-eva-40c3.md"', response['Content-Disposition'])
+        lines = response.content.decode('utf-8').splitlines()
+        self.assertEqual(lines[0], '# Packliste eva:40c3')
+        self.assertRegex(lines[2], r'^2 Crates · Stand \d\d\.\d\d\.\d{4}$')
+        self.assertEqual(lines[4:], [
+            '- [ ] **[0001](https://crates.c-base.org/0001)** Kabel \\*2\\* \\[neu\\] – 600 × 400 mm, 220 mm hoch · alice · `eva:40c3`',
+            '  - ⚠ Needs attention: Deckel fehlt und zu voll',
+            '- [ ] **[0002](https://crates.c-base.org/0002)** Werkzeug – 600 × 400 mm · bob · `eva:40c3`',
+        ])
+        self.assertContains(self.client.get(reverse('crates:packlist'), {'tag': 'eva:40c3'}), 'href="?tag=eva%3A40c3&amp;format=md"')
+        response = self.client.get(reverse('crates:print'), {'what': 'packlist-md', 'c': ['0002']}, follow=True)
+        self.assertIn('filename="crates-liste.md"', response['Content-Disposition'])
 
     def test_dev_null_belongs_to_unbecannt(self):
         self.assertEqual([str(member) for member in Crate.objects.get(code='0000').responsible.all()], ['unbecannt'])

@@ -71,6 +71,27 @@ h2, .h2 { font-size: 1.5rem; margin-top: 1.75rem; }
 #id_responsible label { font-weight: 400; }
 #id_responsible label { display: flex; align-items: center; gap: 0.6rem; padding: 2px 0; }
 input[type=checkbox] { accent-color: #2a9fd6; }
+/* Tags: bereich:wert, der Bereich etwas zurückgenommen */
+.tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem; }
+.tag { display: inline-block; padding: 0 0.45rem; border: 1px solid #1f6f8c; border-radius: 0.25rem; background: none; color: #33b5e5; font-size: 0.85rem; line-height: 1.5; white-space: nowrap; }
+.tag .scope { color: #777; }
+a.tag:hover { border-color: #33b5e5; text-decoration: none; }
+/* Tags im Formular der Crate: Haken in der Form der Tags */
+#id_tags, .tag-picker { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+#id_tags[hidden] + .member-add { margin-top: 0; }
+/* Tag-Filter der Liste: gewählte Tags und das Feld zum Hinzufügen in einer Zeile */
+.tag-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.tag-filter .member-add { flex: 0 1 16rem; margin-top: 0; }
+.tag-filter .member-add input { padding-top: 4px; padding-bottom: 4px; }
+#id_tags label, .tag-picker label { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; padding: 0.1rem 0.55rem; border: 1px solid #1f6f8c; border-radius: 0.25rem; color: #33b5e5; font-weight: 400; cursor: pointer; }
+#id_tags label:has(input:checked), .tag-picker label:has(input:checked) { border-color: #33b5e5; background: rgba(42, 159, 214, 0.25); color: #fff; }
+/* Tags verwalten */
+.tag-edit { display: flex; gap: 0.5rem; flex: 1 1 16rem; min-width: 0; max-width: 30rem; }
+.tag-edit input { flex: 1 1 auto; min-width: 0; }
+.tag-edit .btn { flex: none; }
+.tag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; padding: 0.35rem 0; }
+.tag-row + .tag-row { border-top: 1px solid #282828; }
+.tag-row .btn-link { padding: 0; }
 .attention-note { color: #f80; overflow-wrap: anywhere; }
 p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid #f80; border-radius: 0.25rem; }
 /* Suchfeld mit Vorschlägen, um weitere Verantwortliche hinzuzufügen */
@@ -114,6 +135,11 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 .print-bar .copies { display: flex; align-items: center; gap: 0.3rem; margin: 0; white-space: nowrap; flex: none; }
 .print-bar .copies input { width: 3.6rem; padding: 4px 8px; text-align: right; }
 .print-bar .btn { flex: none; }
+.print-bar .tag-what { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex: 1 1 100%; min-width: 0; }
+.print-bar .tag-what select { flex: 0 1 18rem; min-width: 0; padding-top: 4px; padding-bottom: 4px; }
+/* Das Suchfeld bleibt lesbar breit; reicht der Platz nicht, rutschen die Filter in die nächste Zeile. */
+.search-col { min-width: min(100%, 18rem); }
+.list-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; }
 
 /* Fotos vom Inhalt: Vorschaubilder im Raster, auf dem Telefon zwei nebeneinander */
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
@@ -155,6 +181,7 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
   input[type=checkbox] { width: 22px; height: 22px; }
   #id_responsible label { min-height: 44px; }
   .member-results li { display: flex; align-items: center; gap: 0.4rem; min-height: 44px; }
+  #id_tags label, .tag-picker label { min-height: 40px; padding: 0 0.7rem; }
 }
 
 /* Smartphone */
@@ -172,6 +199,9 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
   .print-bar .print-what { flex-wrap: wrap; max-width: none; }
   .print-bar .print-what select { flex-basis: 100%; }
   .print-bar .print-what .btn { flex: 1 1 auto; }
+  .print-bar .tag-what { flex-wrap: wrap; }
+  .print-bar .tag-what select { flex: 1 1 100%; }
+  .print-bar .tag-what .btn { flex: 1 1 auto; }
   /* Aktionen unter die Bezeichnung statt in eine dritte Spalte */
   .items thead { display: none; }
   .items tr { display: grid; grid-template-columns: 3.5rem 1fr; border-bottom: 1px solid #282828; }

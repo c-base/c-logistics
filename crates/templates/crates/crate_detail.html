@@ -16,6 +16,7 @@
       <dt class="col-sm-3">Lagerort</dt><dd class="col-sm-9">{{ crate.location|default:"–" }}</dd>
       <dt class="col-sm-3">Größe</dt><dd class="col-sm-9">{{ crate.get_size_display }}{% if crate.height_mm %}, {{ crate.height_mm }} mm hoch{% endif %}</dd>
       {% if crate.color %}<dt class="col-sm-3">Farbe</dt><dd class="col-sm-9">{{ crate.color }}</dd>{% endif %}
+      {% if crate.tags.all %}<dt class="col-sm-3">Tags</dt><dd class="col-sm-9 tags">{% for tag in crate.tags.all %}<a class="tag" href="{% url 'crates:list' %}?tag={{ tag|urlencode }}" title="alle Crates mit {{ tag }}"><span class="scope">{{ tag.scope }}:</span>{{ tag.value }}</a>{% endfor %}</dd>{% endif %}
     </dl>
     {% if crate.description %}<p class="mt-2 mb-0">{{ crate.description|linebreaksbr }}</p>{% endif %}
   </div>

@@ -4,7 +4,7 @@ from django.db.models import Case, When
 
 from members.models import Member
 
-from .models import Crate, Item
+from .models import Crate, Item, Tag
 
 
 class BootstrapFormMixin:
@@ -38,11 +38,12 @@ class ResponsibleWidget(forms.CheckboxSelectMultiple):
 class CrateForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Crate
-        fields = ['name', 'description', 'size', 'height_mm', 'color', 'responsible', 'location', 'needs_attention', 'attention_note']
+        fields = ['name', 'description', 'size', 'height_mm', 'color', 'responsible', 'location', 'tags', 'needs_attention', 'attention_note']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
             'attention_note': forms.Textarea(attrs={'rows': 2}),
             'responsible': ResponsibleWidget,
+            'tags': forms.CheckboxSelectMultiple,
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -64,6 +65,12 @@ class CrateForm(BootstrapFormMixin, forms.ModelForm):
         shown = {self.unknown.pk, own, *self._selected_members()}
         field.widget.choices = [(member.pk, member.label) for member in members.filter(pk__in=shown - {None})]
         field.widget.can_add = bool(user is not None and user.is_manager)
+
+        tags = self.fields['tags']
+        tags.help_text = (
+            'Neue Tags legst du unter „Tags verwalten“ an.' if user is not None and user.is_manager
+            else 'Fehlt ein Tag? Manager können neue anlegen.'
+        )
 
     def _selected_members(self):
         """Die IDs der gewählten Member: aus der Eingabe, sonst von der Crate, sonst vorbelegt."""

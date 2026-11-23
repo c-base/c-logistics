@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from django.conf import settings
@@ -34,6 +35,59 @@ class Location(models.Model):
         return self.name
 
 
+class Tag(models.Model):
+    """Ein Tag mit Bereich, geschrieben bereich:wert – z. B. eva:40c3 oder transport:1.
+
+    Der Bereich sagt, worum es geht (Veranstaltung, Transport …), der Wert, welche
+    oder welcher. Tags sind eine feste Auswahl: Manager legen sie unter „Tags
+    verwalten“ an (oder im Admin), an den Crates werden sie nur ausgewählt.
+    """
+
+    PATTERN = re.compile(r'(?P<scope>[\w-]+):(?P<value>[\w.-]+)')
+
+    scope = models.CharField('Bereich', max_length=30)
+    value = models.CharField('Wert', max_length=50)
+
+    class Meta:
+        verbose_name = 'Tag'
+        verbose_name_plural = 'Tags'
+        ordering = ['scope', 'value']
+        constraints = [models.UniqueConstraint(fields=['scope', 'value'], name='unique_tag')]
+
+    def __str__(self):
+        return f'{self.scope}:{self.value}'
+
+    @classmethod
+    def parse(cls, text):
+        """Zerlegt 'EVA:40c3' in ('eva', '40c3'). Wirft ValueError, wenn es kein Tag ist."""
+        match = cls.PATTERN.fullmatch(text.strip().lower())
+        if not match:
+            raise ValueError(f'„{text}“ ist kein Tag. Tags sehen so aus: bereich:wert, z. B. eva:40c3.')
+        scope, value = match['scope'], match['value']
+        if len(scope) > 30 or len(value) > 50:
+            raise ValueError(f'„{text}“ ist zu lang.')
+        return scope, value
+
+    @classmethod
+    def parse_many(cls, text):
+        """Aus 'eva:40c3, Transport:1' wird [('eva', '40c3'), ('transport', '1')], ohne Dubletten."""
+        tags = []
+        for word in text.replace(',', ' ').split():
+            tag = cls.parse(word)
+            if tag not in tags:
+                tags.append(tag)
+        return tags
+
+    @classmethod
+    def find(cls, text):
+        """Das Tag zu 'eva:40c3' oder None, wenn es das nicht gibt."""
+        try:
+            scope, value = cls.parse(text)
+        except ValueError:
+            return None
+        return cls.objects.filter(scope=scope, value=value).first()
+
+
 class Crate(models.Model):
     class Size(models.TextChoices):
         S600X400 = '600x400', '600 × 400 mm'
@@ -57,6 +111,7 @@ class Crate(models.Model):
         Location, verbose_name='Lagerort', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='crates',
     )
+    tags = models.ManyToManyField(Tag, verbose_name='Tags', blank=True, related_name='crates')
     needs_attention = models.BooleanField(
         'Needs attention', default=False,
         help_text='Hier stimmt etwas nicht, z. B. ist der Inhalt zu groß für die Kiste.',

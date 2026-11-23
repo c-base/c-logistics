@@ -1,0 +1,61 @@
+{% load static %}<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="icon" href="{% static 'crates/logo.png' %}">
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: #000; font: 10.5pt/1.35 "Helvetica Neue", Arial, sans-serif; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; padding: 0.75rem 1rem; background: #060606; color: #999; font: 14px "Lucida Console", "Andale Mono", "Courier New", monospace; }
+    .toolbar a { color: #33b5e5; text-decoration: none; }
+    .toolbar button { font: inherit; padding: 0.35rem 1rem; background: #2a9fd6; color: #fff; border: 0; border-radius: 3px; cursor: pointer; }
+    main { max-width: 186mm; margin: 0 auto; padding: 8mm 4mm; }
+    h1 { margin: 0; font-size: 18pt; }
+    .meta { margin: 1mm 0 5mm; color: #444; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { display: table-header-group; }
+    th { text-align: left; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1.5pt solid #000; padding: 1.5mm 2mm 1.5mm 0; }
+    td { vertical-align: top; border-bottom: 0.5pt solid #999; padding: 2mm 2mm 2mm 0; }
+    tr { break-inside: avoid; }
+    .tick { width: 8mm; }
+    .tick span { display: inline-block; width: 4.5mm; height: 4.5mm; border: 1pt solid #000; }
+    .code { font: bold 11pt "Lucida Console", "Courier New", monospace; white-space: nowrap; }
+    .note { font-size: 9pt; }
+    .small { font-size: 9pt; color: #333; }
+    @media print { .toolbar { display: none; } main { max-width: none; padding: 0; } }
+  </style>
+</head>
+<body>
+<nav class="toolbar">
+  <a href="{{ back_url }}">← zurück</a>
+  <a href="{{ csv_url }}">als CSV</a>
+  <a href="{{ markdown_url }}">als Markdown</a>
+  <button type="button" onclick="window.print()">Drucken</button>
+</nav>
+<main>
+  <h1>{{ title }}</h1>
+  <p class="meta">{{ crates|length }} Crate{{ crates|length|pluralize:"s" }} · Stand {% now "SHORT_DATE_FORMAT" %}</p>
+  <table>
+    <thead>
+      <tr><th class="tick"></th><th>ID</th><th>Bezeichnung</th><th>Größe</th><th>Verantwortlich</th><th>Lagerort</th><th>Tags</th></tr>
+    </thead>
+    <tbody>
+      {% for crate in crates %}
+      <tr>
+        <td class="tick"><span></span></td>
+        <td class="code">{{ crate.code }}</td>
+        <td>{{ crate.name }}{% if crate.needs_attention %}<div class="note">⚠ Needs attention{% if crate.attention_note %}: {{ crate.attention_note }}{% endif %}</div>{% endif %}</td>
+        <td class="small">{{ crate.get_size_display }}{% if crate.height_mm %}<br>{{ crate.height_mm }} mm hoch{% endif %}</td>
+        <td class="small">{{ crate.responsible.all|join:", " }}</td>
+        <td class="small">{{ crate.location|default:"" }}</td>
+        <td class="small">{{ crate.tags.all|join:" " }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+</body>
+</html>
