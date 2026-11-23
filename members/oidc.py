@@ -51,10 +51,11 @@ def sync_member(claims):
     if member is None and claims.get('preferred_username'):
         # Nie übernommen werden der Platzhalter „unbecannt“ und Konten, die
         # schon zu einem anderen OIDC-Konto gehören.
-        member = (
-            Member.objects.filter(username=claims['preferred_username'], oidc_sub__isnull=True)
-            .exclude(username=Member.UNKNOWN_USERNAME).first()
-        )
+        # So kommt auch an sein Konto, wer als Verantwortlicher vorgemerkt wurde,
+        # bevor er sich je angemeldet hat (Member.reserve).
+        member = Member.find_by_username(claims['preferred_username'], oidc_sub__isnull=True)
+        if member is not None and member.is_unknown:
+            member = None
         if member is not None:
             member.oidc_sub = sub
     if member is None:

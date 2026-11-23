@@ -26,6 +26,13 @@ class ResponsibleWidget(forms.CheckboxSelectMultiple):
     """Wenige Member als Haken, alle übrigen über ein Suchfeld darunter."""
 
     template_name = 'crates/widgets/responsible.html'
+    # Manager dürfen Member vormerken, die sich noch nie angemeldet haben.
+    can_add = False
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context['widget']['can_add'] = self.can_add
+        return context
 
 
 class CrateForm(BootstrapFormMixin, forms.ModelForm):
@@ -55,7 +62,8 @@ class CrateForm(BootstrapFormMixin, forms.ModelForm):
         # Gültig sind alle Member, als Haken stehen aber nur „unbecannt“, man selbst
         # und die schon gewählten da. Alle anderen kommen über die Suche dazu.
         shown = {self.unknown.pk, own, *self._selected_members()}
-        field.widget.choices = [(member.pk, str(member)) for member in members.filter(pk__in=shown - {None})]
+        field.widget.choices = [(member.pk, member.label) for member in members.filter(pk__in=shown - {None})]
+        field.widget.can_add = bool(user is not None and user.is_manager)
 
     def _selected_members(self):
         """Die IDs der gewählten Member: aus der Eingabe, sonst von der Crate, sonst vorbelegt."""

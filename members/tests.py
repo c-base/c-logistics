@@ -46,6 +46,21 @@ class SyncMemberTests(TestCase):
         self.assertTrue(member.check_password('pw'))
         self.assertEqual(Member.objects.filter(username__startswith='alice').count(), 1)
 
+    def test_first_login_takes_over_the_reserved_account_with_its_crates(self):
+        from crates.models import Crate
+
+        reserved = Member.reserve('Alice')
+        self.assertTrue(reserved.is_pending)
+        crate = Crate.objects.create(name='Wartet auf Alice')
+        crate.responsible.add(reserved)
+        # der Provider schreibt den Namen klein: Es ist trotzdem dasselbe Konto
+        member = sync_member(CLAIMS)
+        self.assertEqual(member.pk, reserved.pk)
+        self.assertFalse(member.is_pending)
+        self.assertEqual(str(member), 'Alice Example')
+        self.assertEqual(list(crate.responsible.all()), [member])
+        self.assertEqual(Member.objects.filter(username__iexact='alice').count(), 1)
+
     def test_account_of_another_oidc_user_is_not_taken_over(self):
         first = sync_member(CLAIMS)
         second = sync_member({**CLAIMS, 'sub': 'other-456'})

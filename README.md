@@ -158,8 +158,17 @@ Beim Provider als Redirect-URI eintragen: `<PUBLIC_BASE_URL>/accounts/oidc/callb
   `python manage.py merge_duplicate_members` zusammen: ohne Angabe zeigt es
   sie nur an, mit `--apply` hängt es Crates, Fotos, Gruppen und die
   SSO-Verknüpfung an das lokale Konto um und löscht das Doppelkonto.
-- Ein Member kann erst als Verantwortlicher gewählt werden, nachdem er sich
-  einmal angemeldet hat.
+- Als Verantwortlicher wählbar ist, wer sich einmal angemeldet hat. Für alle
+  anderen können Manager einen Nick vormerken: Findet das Suchfeld bei den
+  Verantwortlichen niemanden, bietet es „‹nick› als Member vormerken …“ an.
+  Das legt ein Konto nur mit diesem Benutzernamen an, in Auswahllisten
+  gekennzeichnet als „noch nie angemeldet“. Bei ihrer ersten Anmeldung
+  übernimmt die Person es samt ihren Crates (Groß- und Kleinschreibung ist
+  dabei egal). Erinnerungsmails gehen bis dahin an `<nick>@c-base.org`.
+- Ob es einen vorgemerkten Nick wirklich gibt, prüft die App nicht. Ein
+  Tippfehler ergibt ein Konto, das niemand übernimmt; es lässt sich im Admin
+  umbenennen oder löschen. Mit einem Member-Verzeichnis (LDAP o. Ä.) wäre
+  `Member.reserve` in `members/models.py` die Stelle für eine echte Prüfung.
 - Die Login-Seite zeigt den Knopf für den Provider und darunter das Formular
   für lokale Konten; ohne `OIDC_ISSUER_URL` nur das Formular.
 - Admin-Rechte werden nicht vom Provider übernommen, sondern im Admin vergeben.

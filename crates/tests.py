@@ -152,7 +152,7 @@ class CrateTests(TestCase):
         self.assertEqual(self.shown_members(response), ['unbecannt', 'alice', 'bob'])
 
     def test_member_search_finds_by_any_part_of_the_name(self):
-        carol = get_user_model().objects.create_user('carol', first_name='Carol', last_name='Danvers')
+        carol = get_user_model().objects.create_user('carol', password='pw', first_name='Carol', last_name='Danvers')
         url = reverse('crates:member-search')
 
         def found(query):
@@ -170,6 +170,38 @@ class CrateTests(TestCase):
         self.assertEqual(found('zzz'), [])
         self.client.logout()
         self.assertEqual(self.client.get(url, {'q': 'a'}).status_code, 302)
+
+    def test_managers_reserve_members_who_never_logged_in(self):
+        url, users = reverse('crates:member-add'), get_user_model().objects
+        # nur Manager bekommen das Angebot und dürfen vormerken
+        self.assertNotContains(self.client.get(reverse('crates:create')), 'data-add-url')
+        self.assertEqual(self.client.post(url, {'username': 'dave'}).status_code, 403)
+        self.assertFalse(users.filter(username='dave').exists())
+        self.member.groups.add(Group.objects.get(name='Manager'))
+        self.assertContains(self.client.get(reverse('crates:create')), f'data-add-url="{url}"')
+
+        response = self.client.post(url, {'username': ' dave '})
+        dave = users.get(username='dave')
+        self.assertEqual(response.json(), {'id': dave.pk, 'label': 'dave (noch nie angemeldet)', 'username': 'dave'})
+        self.assertTrue(dave.is_pending)
+        self.assertFalse(dave.has_usable_password())
+        self.assertEqual(dave.email_address, 'dave@c-base.org')
+        # ein zweites Mal, auch anders geschrieben, legt kein zweites Konto an
+        self.assertEqual(self.client.post(url, {'username': 'Dave'}).json()['id'], dave.pk)
+        self.assertEqual(self.client.post(url, {'username': 'BOB'}).json(), {'id': self.other.pk, 'label': 'bob', 'username': 'bob'})
+        self.assertEqual(users.filter(username__iexact='dave').count(), 1)
+        for bad in ['', 'zwei worte', 'a@b', 'unbecannt', 'Unbecannt', 'x' * 65]:
+            self.assertEqual(self.client.post(url, {'username': bad}).status_code, 400, bad)
+
+        # der Vorgemerkte ist wählbar, in Suche und Formular gekennzeichnet
+        found = self.client.get(reverse('crates:member-search'), {'q': 'dav'}).json()['results']
+        self.assertEqual([member['label'] for member in found], ['dave (noch nie angemeldet)'])
+        data = {'name': 'Für Dave', 'size': '400x300', 'responsible': [dave.pk]}
+        self.client.post(reverse('crates:create'), data)
+        crate = Crate.objects.get(name='Für Dave')
+        self.assertEqual(list(crate.responsible.all()), [dave])
+        response = self.client.get(reverse('crates:update', args=[crate.code]))
+        self.assertIn('dave (noch nie angemeldet)', self.shown_members(response))
 
     def test_dev_null_belongs_to_unbecannt(self):
         self.assertEqual([str(member) for member in Crate.objects.get(code='0000').responsible.all()], ['unbecannt'])

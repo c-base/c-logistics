@@ -282,8 +282,12 @@ class MemberSearchView(LoginRequiredMixin, generic.View):
                 Q(username__icontains=term) | Q(first_name__icontains=term) | Q(last_name__icontains=term)
             )
         found = members.order_by('username')[:self.limit] if terms else []
-        results = [{'id': member.pk, 'label': str(member), 'username': member.username} for member in found]
-        return JsonResponse({'results': results})
+        return JsonResponse({'results': [member_choice(member) for member in found]})
+
+
+def member_choice(member):
+    """Ein Member, wie ihn das Suchfeld bei den Verantwortlichen erwartet."""
+    return {'id': member.pk, 'label': member.label, 'username': member.username}
 
 
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -291,6 +295,17 @@ class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
     def test_func(self):
         return self.request.user.is_manager
+
+
+class MemberAddView(ManagerRequiredMixin, generic.View):
+    """Merkt einen Member vor, der sich noch nie angemeldet hat: POST /members/add/ mit username=…"""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            member = Member.reserve(request.POST.get('username', ''))
+        except ValueError as error:
+            return JsonResponse({'error': str(error)}, status=400)
+        return JsonResponse(member_choice(member))
 
 
 class RemindView(ManagerRequiredMixin, generic.TemplateView):

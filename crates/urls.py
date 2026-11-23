@@ -26,6 +26,7 @@ urlpatterns = [
     path('cards/', views.CardSheetView.as_view(), name='cards'),
     path('labels/', views.LabelSheetView.as_view(), name='labels'),
     path('members/search/', views.MemberSearchView.as_view(), name='member-search'),
+    path('members/add/', views.MemberAddView.as_view(), name='member-add'),
     path('remind/', views.RemindView.as_view(), name='remind'),
     path('print/', views.PrintDispatchView.as_view(), name='print'),
     path('item/<int:pk>/', views.ItemUpdateView.as_view(), name='item-update'),

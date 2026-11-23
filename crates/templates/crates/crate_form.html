@@ -52,7 +52,26 @@
     var found = [], active = -1, timer, latest = 0;
     add.hidden = false;
 
+    // Nur für Manager: einen Nick vormerken, der sich noch nie angemeldet hat.
+    function reserve(nick) {
+      var question = '„' + nick + '“ hat sich hier noch nie angemeldet. Als Member vormerken?\n\n'
+        + 'Bitte den Nick so schreiben wie im c-base-Account – nur dann übernimmt die Person das Konto bei ihrer ersten Anmeldung.';
+      if (!confirm(question)) return;
+      var body = new URLSearchParams();
+      body.append('username', nick);
+      var token = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+      fetch(add.dataset.addUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': token }, body: body })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.error);
+            return data;
+          });
+        })
+        .then(pick)
+        .catch(function (error) { alert(error.message || 'Vormerken hat nicht geklappt.'); });
+    }
     function pick(member) {
+      if (member.reserve) return reserve(member.username);
       var box = boxes().filter(function (candidate) { return candidate.value === String(member.id); })[0];
       if (!box) {
         var row = document.createElement('div'), label = document.createElement('label');
@@ -72,12 +91,17 @@
       input.focus();
     }
     function mark() {
-      Array.prototype.forEach.call(results.children, function (item, index) {
+      Array.prototype.forEach.call(results.querySelectorAll('[role=option]'), function (item, index) {
         item.classList.toggle('active', index === active);
         item.setAttribute('aria-selected', index === active ? 'true' : 'false');
       });
     }
     function show(members, searched) {
+      var query = input.value.trim();
+      var known = members.some(function (member) { return member.username.toLowerCase() === query.toLowerCase(); });
+      if (searched && add.dataset.addUrl && !known && /^[\w.-]{1,64}$/.test(query)) {
+        members = members.concat([{ reserve: true, username: query, label: '„' + query + '“ als Member vormerken …' }]);
+      }
       found = members;
       active = members.length ? 0 : -1;
       results.textContent = '';
@@ -85,7 +109,8 @@
         var item = document.createElement('li');
         item.setAttribute('role', 'option');
         item.textContent = member.label;
-        if (member.username !== member.label) {
+        if (member.reserve) item.className = 'reserve';
+        if (!member.reserve && member.username !== member.label) {
           var name = document.createElement('span');
           name.className = 'muted';
           name.textContent = ' ' + member.username;
@@ -94,11 +119,11 @@
         item.addEventListener('click', function () { pick(member); });
         results.appendChild(item);
       });
-      if (searched && !members.length) {
+      if (searched && !members.some(function (member) { return !member.reserve; })) {
         var none = document.createElement('li');
         none.className = 'none';
         none.textContent = 'Kein Member gefunden.';
-        results.appendChild(none);
+        results.insertBefore(none, results.firstChild);
       }
       mark();
       results.hidden = !results.children.length;
