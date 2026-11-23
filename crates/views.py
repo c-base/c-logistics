@@ -10,6 +10,8 @@ from django.views import generic
 
 from .forms import CrateForm, ItemForm
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
+from members.models import Member
+
 from .models import Crate, Item, Photo, normalize_code
 from .photos import PhotoError
 
@@ -264,16 +266,40 @@ class LabelSheetView(LoginRequiredMixin, generic.View):
         return response
 
 
-class CrateCreateView(LoginRequiredMixin, generic.CreateView):
-    model = Crate
+class MemberSearchView(LoginRequiredMixin, generic.View):
+    """Vorschläge für das Suchfeld bei den Verantwortlichen: /members/search/?q=ali"""
+
+    limit = 10
+
+    def get(self, request, *args, **kwargs):
+        members = Member.objects.exclude(username=Member.UNKNOWN_USERNAME)
+        terms = request.GET.get('q', '').split()
+        # jedes Wort muss vorkommen, egal ob im Nutzernamen, Vor- oder Nachnamen
+        for term in terms:
+            members = members.filter(
+                Q(username__icontains=term) | Q(first_name__icontains=term) | Q(last_name__icontains=term)
+            )
+        found = members.order_by('username')[:self.limit] if terms else []
+        results = [{'id': member.pk, 'label': str(member), 'username': member.username} for member in found]
+        return JsonResponse({'results': results})
+
+
+class CrateFormMixin:
     form_class = CrateForm
+
+    def get_form_kwargs(self):
+        return {**super().get_form_kwargs(), 'user': self.request.user}
+
+
+class CrateCreateView(LoginRequiredMixin, CrateFormMixin, generic.CreateView):
+    model = Crate
 
     def get_initial(self):
         return {'responsible': [self.request.user.pk]}
 
 
-class CrateUpdateView(LoginRequiredMixin, CrateLookupMixin, generic.UpdateView):
-    form_class = CrateForm
+class CrateUpdateView(LoginRequiredMixin, CrateLookupMixin, CrateFormMixin, generic.UpdateView):
+    pass
 
 
 class CrateDeleteView(LoginRequiredMixin, CrateLookupMixin, generic.DeleteView):

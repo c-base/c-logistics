@@ -129,6 +129,43 @@ class CrateTests(TestCase):
         self.assertEqual(choices[0], 'unbecannt')
         self.assertContains(response, f'data-unknown="{unknown.pk}"')
 
+    def shown_members(self, response):
+        return [label for _, label in response.context['form'].fields['responsible'].widget.choices]
+
+    def test_form_shows_only_unbecannt_oneself_and_the_chosen_members_as_checkboxes(self):
+        response = self.client.get(reverse('crates:create'))
+        self.assertEqual(self.shown_members(response), ['unbecannt', 'alice'])
+        self.assertNotContains(response, f'value="{self.other.pk}"')
+        self.assertContains(response, f'data-search-url="{reverse("crates:member-search")}"')
+        # an einer fremden Crate stehen deren Verantwortliche zusätzlich da
+        response = self.client.get(reverse('crates:update', args=[self.other_crate.code]))
+        self.assertEqual(self.shown_members(response), ['unbecannt', 'alice', 'bob'])
+        self.assertContains(response, f'value="{self.other.pk}"')
+        # nach einem Fehler im Formular bleiben die über die Suche gewählten stehen
+        response = self.client.post(reverse('crates:create'), {'name': '', 'responsible': [self.other.pk, 'x']})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.shown_members(response), ['unbecannt', 'alice', 'bob'])
+
+    def test_member_search_finds_by_any_part_of_the_name(self):
+        carol = get_user_model().objects.create_user('carol', first_name='Carol', last_name='Danvers')
+        url = reverse('crates:member-search')
+
+        def found(query):
+            return [member['username'] for member in self.client.get(url, {'q': query}).json()['results']]
+
+        self.assertEqual(found('LIC'), ['alice'])
+        self.assertEqual(found('dan car'), ['carol'])
+        self.assertEqual(found('o'), ['bob', 'carol'])
+        self.assertEqual(self.client.get(url, {'q': 'car'}).json()['results'], [
+            {'id': carol.pk, 'label': 'Carol Danvers', 'username': 'carol'},
+        ])
+        # der Platzhalter ist immer als Haken da und kein Suchtreffer
+        self.assertEqual(found('unbe'), [])
+        self.assertEqual(found(''), [])
+        self.assertEqual(found('zzz'), [])
+        self.client.logout()
+        self.assertEqual(self.client.get(url, {'q': 'a'}).status_code, 302)
+
     def test_dev_null_belongs_to_unbecannt(self):
         self.assertEqual([str(member) for member in Crate.objects.get(code='0000').responsible.all()], ['unbecannt'])
 

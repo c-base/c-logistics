@@ -21,6 +21,10 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   Er ist gewählt, solange kein Member eingetragen ist, und verschwindet von
   selbst, sobald einer eingetragen wird. „unbecannt“ ist kein echtes Konto:
   inaktiv, ohne Passwort, per Migration angelegt.
+- Im Formular stehen als Haken nur „unbecannt“, man selbst und die schon
+  eingetragenen Verantwortlichen. Alle anderen Member kommen über das Suchfeld
+  darunter dazu (Vorschläge aus `/members/search/?q=…`, Suche in Nutzername,
+  Vor- und Nachname). Ohne JavaScript gibt es das Suchfeld nicht.
 - Jede Crate hat einen Haken „Needs attention“ für alles, was jemand in die
   Hand nehmen muss, z. B. wenn der Inhalt zu groß für die Kiste ist. Markierte
   Crates sind in Liste und Detailansicht gekennzeichnet; die Liste lässt sich

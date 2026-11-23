@@ -1,0 +1,9 @@
+{% include "django/forms/widgets/multiple_input.html" %}
+{# Weitere Member kommen über die Suche dazu; das Skript in crate_form.html blendet sie ein. #}
+<div class="member-add" data-search-url="{% url 'crates:member-search' %}" hidden>
+  <input type="search" class="form-control" placeholder="Member hinzufügen: Name tippen …"
+         autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search"
+         role="combobox" aria-expanded="false" aria-controls="member-results" aria-autocomplete="list"
+         aria-label="Member suchen und als verantwortlich hinzufügen">
+  <ul class="member-results" id="member-results" role="listbox" hidden></ul>
+</div>

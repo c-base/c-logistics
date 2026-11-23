@@ -16,18 +16,108 @@
   // „unbecannt“ ist angehakt, solange kein Member gewählt ist, und geht von selbst
   // weg, sobald einer gewählt wird. Wer „unbecannt“ anhakt, nimmt die anderen heraus.
   (function () {
-    var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name=responsible]'));
-    var unknown = boxes.filter(function (box) { return box.value === box.dataset.unknown; })[0];
-    if (!unknown) return;
-    var others = boxes.filter(function (box) { return box !== unknown; });
-    function anyOther() { return others.some(function (box) { return box.checked; }); }
-    function sync() { unknown.checked = !anyOther(); }
-    others.forEach(function (box) { box.addEventListener('change', sync); });
-    unknown.addEventListener('change', function () {
-      if (unknown.checked) others.forEach(function (box) { box.checked = false; });
+    var list = document.getElementById('id_responsible');
+    if (!list) return;
+    function boxes() { return Array.prototype.slice.call(list.querySelectorAll('input[name=responsible]')); }
+    var unknown = boxes().filter(function (box) { return box.value === box.dataset.unknown; })[0];
+    function sync() {
+      if (unknown) unknown.checked = !boxes().some(function (box) { return box !== unknown && box.checked; });
+    }
+    list.addEventListener('change', function (event) {
+      if (event.target === unknown && unknown.checked) {
+        boxes().forEach(function (box) { if (box !== unknown) box.checked = false; });
+      }
       sync();
     });
     sync();
+
+    // Weitere Member: im Suchfeld tippen, Vorschlag wählen – er kommt als Haken dazu.
+    var add = document.querySelector('.member-add');
+    if (!add || !window.fetch) return;
+    var input = add.querySelector('input'), results = add.querySelector('.member-results');
+    var found = [], active = -1, timer, latest = 0;
+    add.hidden = false;
+
+    function pick(member) {
+      var box = boxes().filter(function (candidate) { return candidate.value === String(member.id); })[0];
+      if (!box) {
+        var row = document.createElement('div'), label = document.createElement('label');
+        box = document.createElement('input');
+        box.type = 'checkbox';
+        box.name = 'responsible';
+        box.value = member.id;
+        label.appendChild(box);
+        label.appendChild(document.createTextNode(' ' + member.label));
+        row.appendChild(label);
+        list.appendChild(row);
+      }
+      box.checked = true;
+      sync();
+      input.value = '';
+      show([]);
+      input.focus();
+    }
+    function mark() {
+      Array.prototype.forEach.call(results.children, function (item, index) {
+        item.classList.toggle('active', index === active);
+        item.setAttribute('aria-selected', index === active ? 'true' : 'false');
+      });
+    }
+    function show(members, searched) {
+      found = members;
+      active = members.length ? 0 : -1;
+      results.textContent = '';
+      members.forEach(function (member) {
+        var item = document.createElement('li');
+        item.setAttribute('role', 'option');
+        item.textContent = member.label;
+        if (member.username !== member.label) {
+          var name = document.createElement('span');
+          name.className = 'muted';
+          name.textContent = ' ' + member.username;
+          item.appendChild(name);
+        }
+        item.addEventListener('click', function () { pick(member); });
+        results.appendChild(item);
+      });
+      if (searched && !members.length) {
+        var none = document.createElement('li');
+        none.className = 'none';
+        none.textContent = 'Kein Member gefunden.';
+        results.appendChild(none);
+      }
+      mark();
+      results.hidden = !results.children.length;
+      input.setAttribute('aria-expanded', results.hidden ? 'false' : 'true');
+    }
+    function search() {
+      var query = input.value.trim(), ticket = ++latest;
+      if (!query) return show([]);
+      fetch(add.dataset.searchUrl + '?q=' + encodeURIComponent(query), { credentials: 'same-origin' })
+        .then(function (response) { return response.json(); })
+        // eine ältere Antwort darf eine neuere nicht überschreiben
+        .then(function (data) { if (ticket === latest) show(data.results, true); })
+        .catch(function () {});
+    }
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(search, 150);
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        // Enter wählt den Vorschlag und schickt nicht das ganze Formular ab
+        event.preventDefault();
+        if (found[active]) pick(found[active]);
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (!found.length) return;
+        event.preventDefault();
+        active = (active + (event.key === 'ArrowDown' ? 1 : -1) + found.length) % found.length;
+        mark();
+      } else if (event.key === 'Escape') {
+        show([]);
+      }
+    });
+    document.addEventListener('click', function (event) { if (!add.contains(event.target)) show([]); });
   })();
 </script>
 {% if object %}
