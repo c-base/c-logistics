@@ -13,7 +13,7 @@ class CrateAdmin(admin.ModelAdmin):
     list_display = ['name', 'code', 'size', 'location', 'needs_attention', 'updated_at']
     list_filter = ['needs_attention', 'size', 'location', 'responsible']
     search_fields = ['name', 'code', 'description', 'items__name']
-    readonly_fields = ['code']
+    readonly_fields = ['code', 'attention_reminded_at']
     filter_horizontal = ['responsible']
     inlines = [ItemInline]
 

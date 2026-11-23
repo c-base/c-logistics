@@ -1,4 +1,4 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.conf import settings
 from django.db.models import Count, Q
 from django.contrib import messages
@@ -14,6 +14,7 @@ from members.models import Member
 
 from .models import Crate, Item, Photo, normalize_code
 from .photos import PhotoError
+from .reminders import make_plan, send_reminders
 
 
 def manifest(request):
@@ -283,6 +284,43 @@ class MemberSearchView(LoginRequiredMixin, generic.View):
         found = members.order_by('username')[:self.limit] if terms else []
         results = [{'id': member.pk, 'label': str(member), 'username': member.username} for member in found]
         return JsonResponse({'results': results})
+
+
+class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Nur für die Rolle „Manager“; alle anderen Angemeldeten bekommen 403."""
+
+    def test_func(self):
+        return self.request.user.is_manager
+
+
+class RemindView(ManagerRequiredMixin, generic.TemplateView):
+    """Vorschau und Versand der Erinnerungen an die Verantwortlichen: /remind/"""
+
+    template_name = 'crates/remind.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['plan'] = make_plan()
+        context['mail_enabled'] = settings.MAIL_ENABLED
+        context['interval_days'] = settings.REMINDER_INTERVAL_DAYS
+        return context
+
+    def post(self, request, *args, **kwargs):
+        target = f"{reverse('crates:list')}?attention=1"
+        if not settings.MAIL_ENABLED:
+            messages.error(request, 'Der Mailversand ist nicht eingerichtet (EMAIL_HOST fehlt).')
+            return redirect('crates:remind')
+        # Der Plan entsteht beim Absenden neu: Wer inzwischen erinnert wurde, bekommt keine zweite Mail.
+        sent, failed = send_reminders(make_plan(), request.user, request)
+        if sent:
+            crates = len({crate.pk for reminder in sent for crate in reminder.crates})
+            messages.success(request, f'{len(sent)} Mail{"s" if len(sent) != 1 else ""} verschickt, zu {crates} Crate{"s" if crates != 1 else ""}.')
+        if failed:
+            names = ', '.join(str(reminder.member) for reminder in failed)
+            messages.error(request, f'Nicht verschickt werden konnte die Mail an: {names}.')
+        if not sent and not failed:
+            messages.info(request, 'Es gab niemanden zu erinnern.')
+        return redirect(target)
 
 
 class CrateFormMixin:

@@ -153,6 +153,30 @@ Beim Provider als Redirect-URI eintragen: `<PUBLIC_BASE_URL>/accounts/oidc/callb
   für lokale Konten; ohne `OIDC_ISSUER_URL` nur das Formular.
 - Admin-Rechte werden nicht vom Provider übernommen, sondern im Admin vergeben.
 
+## Manager und Erinnerungsmails
+
+- „Manager“ ist eine Rolle für alles, was nicht jeder Member tun soll. Technisch
+  ist sie die Gruppe `Manager` (per Migration angelegt). Wer dazugehört, wird im
+  Admin am Member unter „Gruppen“ eingetragen; Superuser sind immer Manager.
+- Erstes Recht der Rolle: die Verantwortlichen aller Crates mit „Needs
+  attention“ per Mail erinnern. In der Liste steht dafür der Knopf
+  „Verantwortliche erinnern …“; er führt auf `/remind/` mit einer Vorschau, wer
+  welche Crates gemeldet bekommt. Verschickt wird erst nach „Mails verschicken“.
+- Jede Person bekommt eine Mail mit allen ihren betroffenen Crates: ID,
+  Bezeichnung, Bemerkung zum Problem und Link. Der Text ist fest
+  (`crates/reminders.py`). Antworten gehen an den Manager, der sie ausgelöst hat.
+- Empfänger ist die Adresse aus dem c-base-Account (OIDC-Claim `email`). Fehlt
+  sie, gilt `<Nutzername>@c-base.org` (`MEMBER_EMAIL_DOMAIN`).
+- Schutz vor Doppelversand: An der Crate wird vermerkt, wann zuletzt erinnert
+  wurde. Frühestens nach `REMINDER_INTERVAL_DAYS` Tagen (Standard 7) gibt es die
+  nächste Mail. Wird der Haken herausgenommen, verfällt der Vermerk.
+- Crates, für die nur „unbecannt“ verantwortlich ist, bekommen keine Mail; die
+  Vorschau führt sie eigens auf.
+- Der Versand braucht einen SMTP-Zugang: `EMAIL_HOST`, `EMAIL_PORT`,
+  `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` (siehe
+  `.env.example`). Ohne `EMAIL_HOST` wird im Betrieb nichts verschickt; in der
+  Entwicklung landen die Mails in der Ausgabe des Servers.
+
 ## Optik
 
 Die Oberfläche nutzt das c-base-Theme
@@ -236,7 +260,7 @@ docker compose exec app python manage.py createsuperuser
 Alle Einstellungen kommen aus Umgebungsvariablen. Für die lokale Arbeit stehen
 sie in der Datei `.env` im Projektordner; `.env.example` ist die kommentierte
 Vorlage. Die `.env` wird nicht committet, weil sie Geheimnisse enthält
-(`DJANGO_SECRET_KEY`, `OIDC_CLIENT_SECRET`).
+(`DJANGO_SECRET_KEY`, `OIDC_CLIENT_SECRET`, `EMAIL_HOST_PASSWORD`).
 
 - Echte Umgebungsvariablen haben Vorrang vor der Datei.
 - Nach Änderungen an der `.env` den Server neu starten.

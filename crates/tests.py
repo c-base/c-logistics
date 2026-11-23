@@ -1,4 +1,9 @@
+from datetime import timedelta
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core import mail
+from django.utils import timezone
+from unittest import mock
 import io
 import tempfile
 from pathlib import Path
@@ -686,3 +691,128 @@ class AppInstallTests(TestCase):
         response = self.client.get(reverse('login'))
         self.assertContains(response, '<link rel="manifest" href="/manifest.webmanifest">')
         self.assertContains(response, 'apple-touch-icon')
+
+
+@override_settings(
+    PUBLIC_BASE_URL='https://crates.c-base.org', MAIL_ENABLED=True, REMINDER_INTERVAL_DAYS=7,
+    MEMBER_EMAIL_DOMAIN='c-base.org', DEFAULT_FROM_EMAIL='crates@c-base.org',
+)
+class ReminderTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        users = get_user_model().objects
+        cls.manager = users.create_user('mona', first_name='Mona', email='mona@example.org')
+        cls.manager.groups.add(Group.objects.get(name='Manager'))
+        cls.alice = users.create_user('alice', first_name='Alice', last_name='Liddell', email='alice@example.org')
+        cls.bob = users.create_user('bob')
+        cls.unknown = get_user_model().unknown()
+
+        def crate(name, *members, **fields):
+            crate = Crate.objects.create(name=name, **fields)
+            crate.responsible.set(members)
+            return crate
+
+        cls.lid = crate('Kabel', cls.alice, needs_attention=True, attention_note='Deckel geht nicht zu\nzu voll')
+        cls.shared = crate('Werkzeug', cls.alice, cls.bob, needs_attention=True)
+        cls.orphan = crate('Fundsachen', cls.unknown, needs_attention=True, attention_note='stinkt')
+        cls.fine = crate('Ordentlich', cls.bob)
+        cls.url = reverse('crates:remind')
+
+    def setUp(self):
+        self.client.force_login(self.manager)
+
+    def test_only_managers_and_superusers_may_remind(self):
+        self.assertContains(self.client.get(reverse('crates:list')), self.url)
+        self.client.force_login(self.alice)
+        self.assertNotContains(self.client.get(reverse('crates:list')), self.url)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.assertEqual(self.client.post(self.url).status_code, 403)
+        self.assertEqual(mail.outbox, [])
+        self.client.force_login(get_user_model().objects.create_superuser('root'))
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_preview_lists_who_gets_which_crates_and_sends_nothing(self):
+        response = self.client.get(self.url)
+        plan = response.context['plan']
+        self.assertEqual(
+            [(reminder.address, [crate.code for crate in reminder.crates]) for reminder in plan.reminders],
+            [('alice@example.org', [self.lid.code, self.shared.code]), ('bob@c-base.org', [self.shared.code])],
+        )
+        self.assertEqual(plan.unreachable, [self.orphan])
+        self.assertContains(response, '2 Mails verschicken')
+        self.assertEqual(mail.outbox, [])
+
+    def test_one_mail_per_person_with_note_and_link(self):
+        response = self.client.post(self.url)
+        self.assertRedirects(response, f"{reverse('crates:list')}?attention=1")
+        self.assertEqual([message.to for message in mail.outbox], [['alice@example.org'], ['bob@c-base.org']])
+        to_alice, to_bob = mail.outbox
+        self.assertEqual(to_alice.subject, '2 deiner c-base cargo crates brauchen Aufmerksamkeit')
+        self.assertEqual(to_alice.reply_to, ['mona@example.org'])
+        self.assertEqual(to_alice.from_email, 'crates@c-base.org')
+        self.assertIn('Hallo Alice,', to_alice.body)
+        self.assertIn(f'  {self.lid.code} Kabel\n  Deckel geht nicht zu\n  zu voll\n  https://crates.c-base.org/{self.lid.code}', to_alice.body)
+        self.assertIn(f'  {self.shared.code} Werkzeug\n  (ohne Bemerkung)\n', to_alice.body)
+        self.assertEqual(to_bob.subject, f'c-base cargo crate {self.shared.code} braucht Aufmerksamkeit')
+        self.assertIn('Hallo bob,', to_bob.body)
+        self.assertNotIn('Kabel', to_bob.body)
+        for message in mail.outbox:
+            self.assertNotIn('Fundsachen', message.body)
+            self.assertNotIn('Ordentlich', message.body)
+
+    def test_reminded_crates_get_no_second_mail_until_the_interval_is_over(self):
+        self.client.post(self.url)
+        self.lid.refresh_from_db()
+        self.orphan.refresh_from_db()
+        self.assertIsNotNone(self.lid.attention_reminded_at)
+        self.assertIsNone(self.orphan.attention_reminded_at)
+        self.assertContains(self.client.get(self.lid.get_absolute_url()), 'zuletzt per Mail erinnert')
+        mail.outbox.clear()
+        response = self.client.get(self.url)
+        self.assertEqual(response.context['plan'].reminders, [])
+        self.assertEqual(response.context['plan'].recent, [self.lid, self.shared])
+        self.client.post(self.url)
+        self.assertEqual(mail.outbox, [])
+        # nach Ablauf der Frist geht es wieder
+        Crate.objects.filter(pk=self.lid.pk).update(attention_reminded_at=timezone.now() - timedelta(days=8))
+        self.client.post(self.url)
+        self.assertEqual([message.to for message in mail.outbox], [['alice@example.org']])
+        self.assertNotIn('Werkzeug', mail.outbox[0].body)
+
+    def test_a_new_problem_on_the_same_crate_may_be_reported_right_away(self):
+        self.client.post(self.url)
+        self.lid.needs_attention = False
+        self.lid.save()
+        self.assertIsNone(self.lid.attention_reminded_at)
+        self.lid.needs_attention = True
+        self.lid.save()
+        mail.outbox.clear()
+        self.client.post(self.url)
+        self.assertEqual([message.to for message in mail.outbox], [['alice@example.org']])
+
+    def test_failed_mail_is_reported_and_its_crates_stay_due(self):
+        def send(message, *args, **kwargs):
+            if message.to == ['alice@example.org']:
+                raise OSError('Postfach kaputt')
+            mail.outbox.append(message)
+            return 1
+
+        with mock.patch('django.core.mail.EmailMessage.send', send), self.assertLogs('crates.reminders', 'ERROR'):
+            response = self.client.post(self.url, follow=True)
+        self.assertContains(response, 'Nicht verschickt werden konnte die Mail an: Alice Liddell.')
+        self.assertContains(response, '1 Mail verschickt, zu 1 Crate.')
+        self.lid.refresh_from_db()
+        self.shared.refresh_from_db()
+        self.assertIsNone(self.lid.attention_reminded_at)
+        # Bob hat seine Mail zur gemeinsamen Crate bekommen
+        self.assertIsNotNone(self.shared.attention_reminded_at)
+
+    @override_settings(MAIL_ENABLED=False)
+    def test_without_mail_setup_nothing_is_sent_or_marked(self):
+        self.assertContains(self.client.get(self.url), 'EMAIL_HOST')
+        self.client.post(self.url)
+        self.assertEqual(mail.outbox, [])
+        self.lid.refresh_from_db()
+        self.assertIsNone(self.lid.attention_reminded_at)

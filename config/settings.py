@@ -215,6 +215,26 @@ OIDC_CLIENT_SECRET = os.environ.get('OIDC_CLIENT_SECRET', '')
 OIDC_SCOPE = os.environ.get('OIDC_SCOPE', 'openid profile email')
 OIDC_PROVIDER_NAME = os.environ.get('OIDC_PROVIDER_NAME', 'c-base-account')
 
+# E-Mail: Manager erinnern die Verantwortlichen von Crates mit „Needs attention“.
+# Ohne EMAIL_HOST wird nichts verschickt; in der Entwicklung landen die Mails
+# stattdessen in der Ausgabe des Servers.
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT') or 587)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+# Port 587: STARTTLS (EMAIL_USE_TLS). Port 465: TLS von Anfang an (EMAIL_USE_SSL).
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL') == '1'
+EMAIL_USE_TLS = not EMAIL_USE_SSL and (os.environ.get('EMAIL_USE_TLS') or '1') == '1'
+EMAIL_TIMEOUT = 20
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'c-base cargo crates <crates@c-base.org>'
+if not EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+MAIL_ENABLED = bool(EMAIL_HOST) or DEBUG
+# Hat ein Konto keine Adresse aus dem c-base-Account, gilt <Nutzername>@<Domain>.
+MEMBER_EMAIL_DOMAIN = os.environ.get('MEMBER_EMAIL_DOMAIN') or 'c-base.org'
+# Eine Crate wird frühestens nach so vielen Tagen erneut angemahnt.
+REMINDER_INTERVAL_DAYS = int(os.environ.get('REMINDER_INTERVAL_DAYS') or 7)
+
 # Wie oft jedes Label und jede Karte gedruckt wird, wenn nichts anderes gewählt
 # ist. Üblich sind zwei: eins für jede Stirnseite der Crate.
 PRINT_COPIES = int(os.environ.get('PRINT_COPIES') or 2)

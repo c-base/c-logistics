@@ -65,6 +65,9 @@ class Crate(models.Model):
         'Was ist das Problem?', blank=True,
         help_text='Bemerkung zu „Needs attention“. Verschwindet, sobald der Haken herausgenommen wird.',
     )
+    attention_reminded_at = models.DateTimeField(
+        'Verantwortliche zuletzt erinnert', null=True, blank=True, editable=False,
+    )
     created_at = models.DateTimeField('Angelegt', auto_now_add=True)
     updated_at = models.DateTimeField('Geändert', auto_now=True)
 
@@ -88,6 +91,8 @@ class Crate(models.Model):
         # Die Bemerkung gehört zum Haken: ist das Problem erledigt, ist sie hinfällig.
         if not self.needs_attention:
             self.attention_note = ''
+            # ein neues Problem an derselben Crate darf sofort wieder gemeldet werden
+            self.attention_reminded_at = None
         if self.code:
             return super().save(*args, **kwargs)
         # Zwei gleichzeitig angelegte Crates könnten dieselbe Nummer ziehen; dann neu versuchen.

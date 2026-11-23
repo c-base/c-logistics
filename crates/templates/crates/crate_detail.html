@@ -7,6 +7,7 @@
   <a class="btn btn-secondary" href="{% url 'crates:update' crate.code %}">Bearbeiten</a>
 </div>
 {% if crate.attention_note %}<p class="attention-note">{{ crate.attention_note|linebreaksbr }}</p>{% endif %}
+{% if crate.needs_attention and crate.attention_reminded_at %}<p class="muted">Verantwortliche zuletzt per Mail erinnert am {{ crate.attention_reminded_at|date:"SHORT_DATE_FORMAT" }}.</p>{% endif %}
 <div class="card transparent">
   <div class="card-body">
     <dl class="row mb-0">
