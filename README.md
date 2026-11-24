@@ -239,7 +239,7 @@ Bootstrap-5-Fassung (Bootswatch Cyborg 5.3.8 plus `bootstrap.custom.css`).
 - `crates/static/crates/app.css` ergänzt nur, was c-logistics eigen ist:
   Eingabefelder im Stil von `.terminal`, das abgedunkelte Stationsbild als
   Hintergrund, die Inhaltstabelle und Anpassungen für Smartphones.
-- **Farbvariante „amber“:** „farbe: blau“ in der Navigation schaltet auf
+- **Farbvariante „amber“:** „theme: blau“ in der Navigation schaltet auf
   Bernstein auf Schwarz um, in Anlehnung an das c-beam KI-Interface
   (<https://ai.cbrp3.c-base.org/>), und wieder zurück. Die Wahl merkt sich der
   Browser, sie gilt also je Gerät. Die Variante gehört zum Theme
