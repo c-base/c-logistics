@@ -210,6 +210,9 @@ Beim Provider als Redirect-URI eintragen: `<PUBLIC_BASE_URL>/accounts/oidc/callb
   attention“ per Mail erinnern. In der Liste steht dafür der Knopf
   „Verantwortliche erinnern …“; er führt auf `/remind/` mit einer Vorschau, wer
   welche Crates gemeldet bekommt. Verschickt wird erst nach „Mails verschicken“.
+- Neue Crates legen vorerst nur Manager an („neue crate“ in der Navigation,
+  `/new/`); alle anderen bekommen dort 403. Bearbeiten, Inhalt und Fotos
+  pflegen darf weiter jeder Member.
 - Jede Person bekommt eine Mail mit allen ihren betroffenen Crates: ID,
   Bezeichnung, Bemerkung zum Problem und Link. Der Text ist fest
   (`crates/reminders.py`). Antworten gehen an den Manager, der sie ausgelöst hat.

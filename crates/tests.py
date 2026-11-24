@@ -34,6 +34,22 @@ class CrateTests(TestCase):
     def setUp(self):
         self.client.force_login(self.member)
 
+    def make_manager(self):
+        self.member.groups.add(Group.objects.get(name='Manager'))
+
+    def test_only_managers_create_crates(self):
+        url = reverse('crates:create')
+        # kein Verweis, kein Formular, kein Anlegen
+        self.assertNotContains(self.client.get(reverse('crates:list')), f'href="{url}"')
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.client.post(url, {'name': 'Heimlich', 'size': '400x300'}).status_code, 403)
+        self.assertFalse(Crate.objects.filter(name='Heimlich').exists())
+        # bearbeiten darf weiter jeder Member
+        self.assertEqual(self.client.get(reverse('crates:update', args=[self.crate.code])).status_code, 200)
+        self.make_manager()
+        self.assertContains(self.client.get(reverse('crates:list')), f'href="{url}"', count=2)
+        self.assertEqual(self.client.get(url).status_code, 200)
+
     def test_codes_are_sequential_four_digit_hex(self):
         self.assertEqual(self.crate.code, '0001')
         self.assertEqual(self.other_crate.code, '0002')
@@ -100,6 +116,7 @@ class CrateTests(TestCase):
         self.assertNotContains(response, 'Werkzeug')
 
     def test_create_crate_with_multiple_responsible(self):
+        self.make_manager()
         response = self.client.post(reverse('crates:create'), {
             'name': 'Lötkram', 'size': '400x300',
             'responsible': [self.member.pk, self.other.pk],
@@ -109,12 +126,14 @@ class CrateTests(TestCase):
         self.assertEqual(crate.responsible.count(), 2)
 
     def test_crate_without_responsible_member_belongs_to_unbecannt(self):
+        self.make_manager()
         self.client.post(reverse('crates:create'), {'name': 'Herrenlos', 'size': '400x300'})
         crate = Crate.objects.get(name='Herrenlos')
         self.assertEqual([member.username for member in crate.responsible.all()], ['unbecannt'])
         self.assertContains(self.client.get(crate.get_absolute_url()), 'unbecannt')
 
     def test_unbecannt_goes_away_as_soon_as_a_member_is_responsible(self):
+        self.make_manager()
         unknown = get_user_model().unknown()
         data = {'name': 'Gefunden', 'size': '400x300', 'responsible': [unknown.pk, self.member.pk]}
         self.client.post(reverse('crates:create'), data)
@@ -125,6 +144,7 @@ class CrateTests(TestCase):
         self.assertEqual(list(crate.responsible.all()), [unknown])
 
     def test_unbecannt_is_a_placeholder_that_cannot_log_in_and_heads_the_list(self):
+        self.make_manager()
         unknown = get_user_model().unknown()
         self.assertFalse(unknown.is_active)
         self.assertFalse(unknown.has_usable_password())
@@ -139,6 +159,7 @@ class CrateTests(TestCase):
         return [label for _, label in response.context['form'].fields['responsible'].widget.choices]
 
     def test_form_shows_only_unbecannt_oneself_and_the_chosen_members_as_checkboxes(self):
+        self.make_manager()
         response = self.client.get(reverse('crates:create'))
         self.assertEqual(self.shown_members(response), ['unbecannt', 'alice'])
         self.assertNotContains(response, f'value="{self.other.pk}"')
@@ -175,7 +196,7 @@ class CrateTests(TestCase):
     def test_managers_reserve_members_who_never_logged_in(self):
         url, users = reverse('crates:member-add'), get_user_model().objects
         # nur Manager bekommen das Angebot und dürfen vormerken
-        self.assertNotContains(self.client.get(reverse('crates:create')), 'data-add-url')
+        self.assertNotContains(self.client.get(reverse('crates:update', args=[self.crate.code])), 'data-add-url')
         self.assertEqual(self.client.post(url, {'username': 'dave'}).status_code, 403)
         self.assertFalse(users.filter(username='dave').exists())
         self.member.groups.add(Group.objects.get(name='Manager'))

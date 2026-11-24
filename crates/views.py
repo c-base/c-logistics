@@ -557,7 +557,9 @@ class CrateFormMixin:
         return {**super().get_form_kwargs(), 'user': self.request.user}
 
 
-class CrateCreateView(LoginRequiredMixin, CrateFormMixin, generic.CreateView):
+class CrateCreateView(ManagerRequiredMixin, CrateFormMixin, generic.CreateView):
+    """Neue Crates legen vorerst nur Manager an; bearbeiten darf weiter jeder Member."""
+
     model = Crate
 
     def get_initial(self):

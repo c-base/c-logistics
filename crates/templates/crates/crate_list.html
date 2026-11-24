@@ -3,8 +3,10 @@
 {% block content %}
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
   <h1 class="flex-grow-1 m-0">c-base cargo crates</h1>
-  {% if user.is_manager %}<a class="btn btn-secondary page-action" href="{% url 'crates:remind' %}">Verantwortliche erinnern …</a>{% endif %}
+  {% if user.is_manager %}
+  <a class="btn btn-secondary page-action" href="{% url 'crates:remind' %}">Verantwortliche erinnern …</a>
   <a class="btn btn-primary page-action" href="{% url 'crates:create' %}">Neue Crate</a>
+  {% endif %}
 </div>
 <form method="get" class="row g-2 align-items-center mb-3">
   <div class="col-12 col-sm search-col">
