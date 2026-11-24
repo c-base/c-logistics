@@ -942,6 +942,25 @@ class AppInstallTests(TestCase):
         self.assertContains(response, 'apple-touch-icon')
 
 
+class ThemeTests(TestCase):
+    """Farbvariante „amber“ zum Umschalten in der Navigation."""
+
+    def test_every_page_offers_the_switch_with_and_without_login(self):
+        login = self.client.get(reverse('login'))
+        self.client.force_login(get_user_model().objects.create_user('alice'))
+        for response in (login, self.client.get(reverse('crates:list'))):
+            self.assertContains(response, 'data-cbase-theme-toggle', count=1)
+            for file in ('c-base-bootstrap/css/c-base-amber.css', 'crates/theme-amber.css', 'c-base-bootstrap/js/c-base-theme.js'):
+                self.assertContains(response, f'/static/{file}"')
+
+    def test_theme_files_and_the_font_are_served_as_static_files(self):
+        from django.contrib.staticfiles import finders
+
+        for file in ('css/c-base-amber.css', 'js/c-base-theme.js', 'fonts/Orbitron.ttf'):
+            self.assertIsNotNone(finders.find(f'c-base-bootstrap/{file}'), file)
+        self.assertIsNotNone(finders.find('crates/theme-amber.css'))
+
+
 @override_settings(
     PUBLIC_BASE_URL='https://crates.c-base.org', MAIL_ENABLED=True, REMINDER_INTERVAL_DAYS=7,
     MEMBER_EMAIL_DOMAIN='c-base.org', DEFAULT_FROM_EMAIL='crates@c-base.org',

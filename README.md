@@ -232,13 +232,20 @@ Die Oberfläche nutzt das c-base-Theme
 Bootstrap-5-Fassung (Bootswatch Cyborg 5.3.8 plus `bootstrap.custom.css`).
 
 - Die benötigten Theme-Dateien liegen als Kopie unter
-  `static/c-base-bootstrap/` (CSS, Bootstrap-JS, Hintergrundbild). Stand:
+  `static/c-base-bootstrap/` (CSS, JS, Schrift, Hintergrundbild). Stand:
   Branch [`bootstrap5`](https://github.com/c-base/c-base-bootstrap/tree/bootstrap5),
-  Commit `89659d3`. `master` bleibt die Bootstrap-3-Fassung, die andere
+  Commit `1cffb4d`. `master` bleibt die Bootstrap-3-Fassung, die andere
   c-base-Anwendungen einbinden.
 - `crates/static/crates/app.css` ergänzt nur, was c-logistics eigen ist:
   Eingabefelder im Stil von `.terminal`, das abgedunkelte Stationsbild als
   Hintergrund, die Inhaltstabelle und Anpassungen für Smartphones.
+- **Farbvariante „amber“:** „farbe: blau“ in der Navigation schaltet auf
+  Bernstein auf Schwarz um, in Anlehnung an das c-beam KI-Interface
+  (<https://ai.cbrp3.c-base.org/>), und wieder zurück. Die Wahl merkt sich der
+  Browser, sie gilt also je Gerät. Die Variante gehört zum Theme
+  (`css/c-base-amber.css`, `js/c-base-theme.js`, `fonts/Orbitron.ttf`);
+  `crates/static/crates/theme-amber.css` setzt dazu nur die Farbvariablen aus
+  `app.css` neu. Die Druckansichten bleiben, wie sie sind.
 - Formulare bekommen ihr Bootstrap-Markup über `BootstrapFormMixin` und das
   Template `crates/templates/forms/bootstrap.html`.
 - Das Logo unter `crates/static/crates/logo.png` stammt von c-beam.

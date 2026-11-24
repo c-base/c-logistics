@@ -10,7 +10,11 @@
   <link rel="apple-touch-icon" href="{% static 'crates/icons/apple-touch-icon.png' %}">
   <link href="{% static 'c-base-bootstrap/css/cyborg.min.css' %}" rel="stylesheet">
   <link href="{% static 'c-base-bootstrap/css/bootstrap.custom.css' %}" rel="stylesheet">
+  <link href="{% static 'c-base-bootstrap/css/c-base-amber.css' %}" rel="stylesheet">
   <link href="{% static 'crates/app.css' %}" rel="stylesheet">
+  <link href="{% static 'crates/theme-amber.css' %}" rel="stylesheet">
+  {# Farbvariante: im Kopf und ohne defer, damit die Seite nicht erst blau aufblitzt. Die Wahl gilt je Gerät. #}
+  <script src="{% static 'c-base-bootstrap/js/c-base-theme.js' %}"></script>
 </head>
 <body>
 <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
@@ -29,7 +33,10 @@
         {% if user.is_staff %}<li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">admin</a></li>{% endif %}
       </ul>
       <ul class="navbar-nav align-items-md-center">
-        <li class="nav-item"><span class="navbar-text me-md-3">{{ user }}</span></li>
+        <li class="nav-item">
+          <button type="button" class="nav-link" data-cbase-theme-toggle title="Farbvariante umschalten">farbe: <span class="cbase-if-default">blau</span><span class="cbase-if-amber">amber</span></button>
+        </li>
+        <li class="nav-item"><span class="navbar-text mx-md-3">{{ user }}</span></li>
         <li class="nav-item">
           <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="nav-link">c-logout</button></form>
         </li>
@@ -37,6 +44,11 @@
       {% else %}
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">c-login</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <button type="button" class="nav-link" data-cbase-theme-toggle title="Farbvariante umschalten">farbe: <span class="cbase-if-default">blau</span><span class="cbase-if-amber">amber</span></button>
+        </li>
       </ul>
       {% endif %}
     </div>

@@ -1,0 +1,36 @@
+/* Farbvariante „amber“: was c-logistics über das Theme hinaus braucht.
+
+   Die Variante selbst – Bernstein auf Schwarz, Rasterzeilen, leuchtende Rahmen,
+   Überschriften in Orbitron – kommt aus c-base-bootstrap (css/c-base-amber.css),
+   der Umschalter aus js/c-base-theme.js. Sie gilt, solange
+   <html data-cbase-theme="amber"> gesetzt ist. */
+
+:root[data-cbase-theme="amber"] {
+  /* Farben aus app.css */
+  --cl-accent: #ffcc66;
+  --cl-primary: #ff8800;
+  --cl-field-border: #ff8800;
+  --cl-accent-dim: #a35200;
+  --cl-accent-soft: rgba(255, 136, 0, 0.2);
+  --cl-bright: #ffcc66;
+  --cl-muted: #b36a1a;
+  --cl-line: rgba(255, 102, 0, 0.45);
+  /* alles ist schon orange: die Warnung muss anders auffallen */
+  --cl-attention: #ffe600;
+}
+
+/* Rasterzeilen und dunkler Rand statt des Stationsbilds */
+[data-cbase-theme="amber"] body::before {
+  background:
+    radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 136, 0, 0.04) 2px, rgba(255, 136, 0, 0.04) 4px),
+    #000;
+}
+/* die Rasterzeilen liegen schon in der Ebene dahinter */
+[data-cbase-theme="amber"] body { background-image: none; }
+
+[data-cbase-theme="amber"] .print-bar { background: rgba(0, 0, 0, 0.92); border-color: #ff6600; }
+[data-cbase-theme="amber"] .tag { background: rgba(0, 0, 0, 0.7); }
+[data-cbase-theme="amber"] .attention { background: #ffe600; color: #000; }
+[data-cbase-theme="amber"] .copy-link:hover,
+[data-cbase-theme="amber"] .copy-link:focus-visible { color: #fff; }
