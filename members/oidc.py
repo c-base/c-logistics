@@ -40,11 +40,24 @@ def _free_username(wanted):
 def sync_member(claims):
     """Legt den Member zum OIDC-Konto an oder aktualisiert Name und E-Mail.
 
-    Zugeordnet wird ausschließlich über das `sub`-Claim. Ein bestehendes lokales
-    Konto mit gleichem Benutzernamen wird bewusst nicht übernommen.
+    Wiedererkannt wird ein Konto über das `sub`-Claim. Beim ersten Login
+    übernimmt der Member ein bestehendes lokales Konto mit gleichem
+    Benutzernamen samt dessen Rechten und Crates, statt daneben ein zweites
+    („alice-2“) zu bekommen. Das setzt voraus, dass der Provider Benutzernamen
+    nur an ihre rechtmäßigen Inhaber vergibt.
     """
     sub = claims['sub']
     member = Member.objects.filter(oidc_sub=sub).first()
+    if member is None and claims.get('preferred_username'):
+        # Nie übernommen werden der Platzhalter „unbecannt“ und Konten, die
+        # schon zu einem anderen OIDC-Konto gehören.
+        # So kommt auch an sein Konto, wer als Verantwortlicher vorgemerkt wurde,
+        # bevor er sich je angemeldet hat (Member.reserve).
+        member = Member.find_by_username(claims['preferred_username'], oidc_sub__isnull=True)
+        if member is not None and member.is_unknown:
+            member = None
+        if member is not None:
+            member.oidc_sub = sub
     if member is None:
         wanted = claims.get('preferred_username') or claims.get('email') or sub
         member = Member(oidc_sub=sub, username=_free_username(wanted))

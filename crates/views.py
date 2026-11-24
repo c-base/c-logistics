@@ -1,19 +1,28 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
+import csv
+import re
+
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.utils.formats import date_format
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import generic
 
 from .describe import describe_later
 from .forms import CrateForm, ItemForm
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
-from .models import Crate, Item, Photo, normalize_code
+from members.models import Member
+
+from .models import Crate, Item, Photo, Tag, normalize_code
 from .photos import PhotoError
+from .reminders import make_plan, send_reminders
 
 
 def manifest(request):
@@ -54,34 +63,61 @@ class CrateLookupMixin:
         return get_object_or_404(self.get_queryset(), code=normalize_code(self.kwargs['code']))
 
 
+def selected_tags(request):
+    """Die Tags, nach denen gefiltert wird (?tag=eva:40c3&tag=transport:1), ohne Dubletten."""
+    names = [name.strip().lower() for name in request.GET.getlist('tag') if name.strip()]
+    return list(dict.fromkeys(names))
+
+
+def filtered_crates(request):
+    """Die Crates der Liste mit Suche und Filtern aus der Adresse, nach ID sortiert."""
+    qs = (
+        Crate.objects.select_related('location')
+        .prefetch_related('responsible', 'tags')
+        .annotate(item_count=Count('items', distinct=True))
+        .order_by('code')
+    )
+    query = request.GET.get('q', '').strip()
+    if query:
+        qs = qs.filter(
+            Q(name__icontains=query)
+            | Q(code=normalize_code(query))
+            | Q(description__icontains=query)
+            | Q(attention_note__icontains=query)
+            | Q(items__name__icontains=query)
+            | Q(photos__description__icontains=query)
+            | Q(tags__scope__icontains=query)
+            | Q(tags__value__icontains=query)
+        ).distinct()
+    if request.GET.get('mine'):
+        qs = qs.filter(responsible=request.user)
+    if request.GET.get('attention'):
+        qs = qs.filter(needs_attention=True)
+    # die Crate muss jedes der gewählten Tags tragen
+    for name in selected_tags(request):
+        tag = Tag.find(name)
+        qs = qs.filter(tags=tag) if tag else qs.none()
+    return qs
+
+
 class CrateListView(LoginRequiredMixin, generic.ListView):
     model = Crate
     paginate_by = 50
 
     def get_queryset(self):
-        qs = (
-            Crate.objects.select_related('location')
-            .prefetch_related('responsible')
-            .annotate(item_count=Count('items', distinct=True))
-            .order_by('code')
-        )
-        query = self.request.GET.get('q', '').strip()
-        if query:
-            qs = qs.filter(
-                Q(name__icontains=query)
-                | Q(code=normalize_code(query))
-                | Q(description__icontains=query)
-                | Q(items__name__icontains=query)
-                | Q(photos__description__icontains=query)
-            ).distinct()
-        if self.request.GET.get('mine'):
-            qs = qs.filter(responsible=self.request.user)
-        return qs
+        return filtered_crates(self.request)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['query'] = self.request.GET.get('q', '').strip()
         context['mine'] = bool(self.request.GET.get('mine'))
+        context['attention'] = bool(self.request.GET.get('attention'))
+        context['tags'] = Tag.objects.all()
+        context['selected_tags'] = selected_tags(self.request)
+        # für „zurück“ und „weiter“: alle Filter außer der Seite
+        params = self.request.GET.copy()
+        params.pop('page', None)
+        context['filter_query'] = params.urlencode()
         context['copies'] = settings.PRINT_COPIES
         context['max_copies'] = MAX_COPIES
         context['print_variants'] = [(key, label) for key, (label, _, _) in PrintDispatchView.variants.items()]
@@ -207,10 +243,143 @@ class CrateLabelView(LoginRequiredMixin, CrateLookupMixin, generic.View):
         return response
 
 
-def selected_crates(request):
+def selected_crates(request, data=None):
     """Die in der Liste angehakten Crates (?c=0001&c=0002), nach ID sortiert."""
-    codes = {normalize_code(code) for code in request.GET.getlist('c') if len(code) <= 4}
+    data = request.GET if data is None else data
+    codes = {normalize_code(code) for code in data.getlist('c') if len(code) <= 4}
     return list(Crate.objects.filter(code__in=codes).order_by('code'))
+
+
+class BulkTagView(LoginRequiredMixin, generic.View):
+    """Setzt oder entfernt Tags an allen in der Liste angehakten Crates.
+
+    POST /tag/ mit c=0001&c=0002, tags=transport:1 und action=add|remove
+    """
+
+    def post(self, request, *args, **kwargs):
+        target = request.POST.get('next', '')
+        if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+            target = reverse('crates:list')
+        crates = selected_crates(request, request.POST)
+        names = request.POST.get('tags', '').replace(',', ' ').split()
+        if not crates or not names:
+            messages.error(request, 'Bitte Crates auswählen und ein Tag wählen.')
+            return redirect(target)
+        # nur Tags aus der festen Auswahl; neue legen Manager unter „Tags verwalten“ an
+        tags = [Tag.find(name) for name in names]
+        if None in tags:
+            unknown = ', '.join(name for name, tag in zip(names, tags) if tag is None)
+            messages.error(request, f'Dieses Tag gibt es nicht: {unknown}.')
+            return redirect(target)
+        shown = ', '.join(str(tag) for tag in tags)
+        count = f'{len(crates)} Crate{"s" if len(crates) != 1 else ""}'
+        if request.POST.get('action') == 'remove':
+            for crate in crates:
+                crate.tags.remove(*tags)
+            messages.success(request, f'{shown} von {count} entfernt.')
+        else:
+            for crate in crates:
+                crate.tags.add(*tags)
+            messages.success(request, f'{shown} an {count} gesetzt.')
+        return redirect(target)
+
+
+def _csv_cell(value):
+    """Als Text für eine Tabellenkalkulation: Was wie eine Formel beginnt, wird entschärft."""
+    text = str(value)
+    return f"'{text}" if text[:1] in ('=', '+', '-', '@') else text
+
+
+class PackListView(LoginRequiredMixin, generic.View):
+    """Packliste zum Abhaken: druckbar oder als CSV.
+
+    /packlist/?tag=eva:40c3            alle Crates, auf die die Filter der Liste passen
+    /packlist/?c=0001&c=0002           die in der Liste angehakten Crates
+    format=csv                         statt der Seite eine CSV-Datei
+    format=md                          statt der Seite eine Markdown-Datei mit Checkliste
+    """
+
+    def get(self, request, *args, **kwargs):
+        tags = selected_tags(request)
+        if request.GET.getlist('c'):
+            crates = Crate.objects.filter(pk__in=[crate.pk for crate in selected_crates(request)])
+            crates = crates.select_related('location').prefetch_related('responsible', 'tags')
+            crates = list(crates.annotate(item_count=Count('items', distinct=True)).order_by('code'))
+            tags = []
+        else:
+            crates = list(filtered_crates(request))
+        title = f'Packliste {" ".join(tags)}' if tags else 'Packliste'
+        if request.GET.get('format') == 'csv':
+            return self.csv(request, crates, tags)
+        if request.GET.get('format') == 'md':
+            return self.markdown(request, crates, tags, title)
+        params, markdown_params = request.GET.copy(), request.GET.copy()
+        params['format'] = 'csv'
+        markdown_params['format'] = 'md'
+        # zurück zur Liste mit denselben Filtern; angehakte Crates stehen dort nicht in der Adresse
+        back = request.GET.copy()
+        for key in ('c', 'format', 'copies'):
+            back.pop(key, None)
+        context = {
+            'crates': crates, 'title': title,
+            'csv_url': f'?{params.urlencode()}',
+            'markdown_url': f'?{markdown_params.urlencode()}',
+            'back_url': f"{reverse('crates:list')}{'?' + back.urlencode() if back else ''}",
+        }
+        return render(request, 'crates/packlist.html', context)
+
+    @staticmethod
+    def filename(tags, extension):
+        name = re.sub(r'[^A-Za-z0-9._-]+', '-', '-'.join(tags)).strip('-') or 'liste'
+        return f'crates-{name}.{extension}'
+
+    def markdown(self, request, crates, tags, title):
+        """Die Packliste als Markdown-Checkliste zum Abhaken, z. B. für Wiki, Pad oder Issue.
+
+        Eine Liste und keine Tabelle: Kästchen (`- [ ]`) gibt es in Markdown nur an Listenpunkten.
+        """
+
+        def text(value):
+            # einzeilig, und Zeichen mit Bedeutung in Markdown bleiben, was sie sind
+            return re.sub(r'([\\`*_\[\]<>|])', r'\\\1', ' '.join(str(value).split()))
+
+        lines = [
+            f'# {text(title)}', '',
+            f'{len(crates)} Crate{"s" if len(crates) != 1 else ""} · Stand {date_format(timezone.localdate(), "SHORT_DATE_FORMAT")}', '',
+        ]
+        for crate in crates:
+            details = [crate.get_size_display() + (f', {crate.height_mm} mm hoch' if crate.height_mm else '')]
+            details.append(text(', '.join(str(member) for member in crate.responsible.all())))
+            if crate.location:
+                details.append(text(crate.location))
+            details += [f'`{tag}`' for tag in crate.tags.all()]
+            lines.append(f'- [ ] **[{crate.code}]({public_url(crate, request)})** {text(crate.name)} – {" · ".join(details)}')
+            if crate.needs_attention:
+                note = f': {text(crate.attention_note)}' if crate.attention_note else ''
+                lines.append(f'  - ⚠ Needs attention{note}')
+        response = HttpResponse('\n'.join(lines) + '\n', content_type='text/markdown; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{self.filename(tags, "md")}"'
+        return response
+
+    def csv(self, request, crates, tags):
+        # Semikolon und BOM, damit ein deutsches Excel die Datei ohne Nachfragen richtig öffnet
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{self.filename(tags, "csv")}"'
+        response.write('\ufeff')
+        writer = csv.writer(response, delimiter=';')
+        writer.writerow([
+            'ID', 'Bezeichnung', 'Grundmaß', 'Höhe (mm)', 'Farbe', 'Verantwortliche', 'Lagerort', 'Tags',
+            'Needs attention', 'Bemerkung', 'Positionen', 'Adresse',
+        ])
+        for crate in crates:
+            writer.writerow([_csv_cell(value) for value in (
+                crate.code, crate.name, crate.get_size_display(), crate.height_mm or '', crate.color,
+                ', '.join(str(member) for member in crate.responsible.all()), crate.location or '',
+                ' '.join(str(tag) for tag in crate.tags.all()),
+                'ja' if crate.needs_attention else '', crate.attention_note, crate.item_count,
+                public_url(crate, request),
+            )])
+        return response
 
 
 class PrintDispatchView(LoginRequiredMixin, generic.View):
@@ -225,6 +394,9 @@ class PrintDispatchView(LoginRequiredMixin, generic.View):
         'labels-ql': ('Labels als QL-Druckdatei (mit Schnitt)', 'crates:labels', 'ql'),
         'cards-a5': ('Karten DIN A5 (2 pro Blatt)', 'crates:cards', 'a5'),
         'cards-a6': ('Karten DIN A6 (4 pro Blatt)', 'crates:cards', 'a6'),
+        'packlist': ('Packliste zum Ausdrucken', 'crates:packlist', 'html'),
+        'packlist-csv': ('Packliste als CSV', 'crates:packlist', 'csv'),
+        'packlist-md': ('Packliste als Markdown', 'crates:packlist', 'md'),
     }
 
     def get(self, request, *args, **kwargs):
@@ -264,16 +436,139 @@ class LabelSheetView(LoginRequiredMixin, generic.View):
         return response
 
 
-class CrateCreateView(LoginRequiredMixin, generic.CreateView):
-    model = Crate
+class MemberSearchView(LoginRequiredMixin, generic.View):
+    """Vorschläge für das Suchfeld bei den Verantwortlichen: /members/search/?q=ali"""
+
+    limit = 10
+
+    def get(self, request, *args, **kwargs):
+        members = Member.objects.exclude(username=Member.UNKNOWN_USERNAME)
+        terms = request.GET.get('q', '').split()
+        # jedes Wort muss vorkommen, egal ob im Nutzernamen, Vor- oder Nachnamen
+        for term in terms:
+            members = members.filter(
+                Q(username__icontains=term) | Q(first_name__icontains=term) | Q(last_name__icontains=term)
+            )
+        found = members.order_by('username')[:self.limit] if terms else []
+        return JsonResponse({'results': [member_choice(member) for member in found]})
+
+
+def member_choice(member):
+    """Ein Member, wie ihn das Suchfeld bei den Verantwortlichen erwartet."""
+    return {'id': member.pk, 'label': member.label, 'username': member.username}
+
+
+class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Nur für die Rolle „Manager“; alle anderen Angemeldeten bekommen 403."""
+
+    def test_func(self):
+        return self.request.user.is_manager
+
+
+class MemberAddView(ManagerRequiredMixin, generic.View):
+    """Merkt einen Member vor, der sich noch nie angemeldet hat: POST /members/add/ mit username=…"""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            member = Member.reserve(request.POST.get('username', ''))
+        except ValueError as error:
+            return JsonResponse({'error': str(error)}, status=400)
+        return JsonResponse(member_choice(member))
+
+
+class TagManageView(ManagerRequiredMixin, generic.TemplateView):
+    """Manager legen Tags an, benennen sie um und löschen sie: /tags/"""
+
+    template_name = 'crates/tag_manage.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['tags'] = Tag.objects.annotate(crate_count=Count('crates'))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get('action')
+        try:
+            if action == 'add':
+                names = Tag.parse_many(request.POST.get('names', ''))
+                if not names:
+                    raise ValueError('Bitte ein Tag angeben.')
+                created = [
+                    f'{scope}:{value}' for scope, value in names
+                    if Tag.objects.get_or_create(scope=scope, value=value)[1]
+                ]
+                if created:
+                    messages.success(request, f'Angelegt: {", ".join(created)}.')
+                else:
+                    messages.info(request, 'Diese Tags gab es schon.')
+            else:
+                tag = get_object_or_404(Tag, pk=request.POST.get('tag'))
+                old = str(tag)
+                if action == 'delete':
+                    tag.delete()
+                    messages.success(request, f'{old} gelöscht.')
+                elif action == 'rename':
+                    scope, value = Tag.parse(request.POST.get('name', ''))
+                    if Tag.objects.filter(scope=scope, value=value).exclude(pk=tag.pk).exists():
+                        raise ValueError(f'{scope}:{value} gibt es schon.')
+                    tag.scope, tag.value = scope, value
+                    tag.save()
+                    if str(tag) != old:
+                        messages.success(request, f'{old} heißt jetzt {tag}.')
+        except ValueError as error:
+            messages.error(request, str(error))
+            if action == 'add':
+                # die Eingabe bleibt stehen, damit man sie korrigieren kann
+                return self.render_to_response(self.get_context_data(entered=request.POST.get('names', '')))
+        return redirect('crates:tags')
+
+
+class RemindView(ManagerRequiredMixin, generic.TemplateView):
+    """Vorschau und Versand der Erinnerungen an die Verantwortlichen: /remind/"""
+
+    template_name = 'crates/remind.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['plan'] = make_plan()
+        context['mail_enabled'] = settings.MAIL_ENABLED
+        context['interval_days'] = settings.REMINDER_INTERVAL_DAYS
+        return context
+
+    def post(self, request, *args, **kwargs):
+        target = f"{reverse('crates:list')}?attention=1"
+        if not settings.MAIL_ENABLED:
+            messages.error(request, 'Der Mailversand ist nicht eingerichtet (EMAIL_HOST fehlt).')
+            return redirect('crates:remind')
+        # Der Plan entsteht beim Absenden neu: Wer inzwischen erinnert wurde, bekommt keine zweite Mail.
+        sent, failed = send_reminders(make_plan(), request.user, request)
+        if sent:
+            crates = len({crate.pk for reminder in sent for crate in reminder.crates})
+            messages.success(request, f'{len(sent)} Mail{"s" if len(sent) != 1 else ""} verschickt, zu {crates} Crate{"s" if crates != 1 else ""}.')
+        if failed:
+            names = ', '.join(str(reminder.member) for reminder in failed)
+            messages.error(request, f'Nicht verschickt werden konnte die Mail an: {names}.')
+        if not sent and not failed:
+            messages.info(request, 'Es gab niemanden zu erinnern.')
+        return redirect(target)
+
+
+class CrateFormMixin:
     form_class = CrateForm
+
+    def get_form_kwargs(self):
+        return {**super().get_form_kwargs(), 'user': self.request.user}
+
+
+class CrateCreateView(LoginRequiredMixin, CrateFormMixin, generic.CreateView):
+    model = Crate
 
     def get_initial(self):
         return {'responsible': [self.request.user.pk]}
 
 
-class CrateUpdateView(LoginRequiredMixin, CrateLookupMixin, generic.UpdateView):
-    form_class = CrateForm
+class CrateUpdateView(LoginRequiredMixin, CrateLookupMixin, CrateFormMixin, generic.UpdateView):
+    pass
 
 
 class CrateDeleteView(LoginRequiredMixin, CrateLookupMixin, generic.DeleteView):

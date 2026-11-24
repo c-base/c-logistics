@@ -17,16 +17,60 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - Gescannt wird mit Android-Smartphones; die URL öffnet die Crate-Seite im Browser.
 - Pro Crate gibt es Inhalt (Positionen mit Menge) und einen oder mehrere
   verantwortliche Member.
+- Kennt niemand die Verantwortlichen, steht dort der Platzhalter „unbecannt“.
+  Er ist gewählt, solange kein Member eingetragen ist, und verschwindet von
+  selbst, sobald einer eingetragen wird. „unbecannt“ ist kein echtes Konto:
+  inaktiv, ohne Passwort, per Migration angelegt.
+- Im Formular stehen als Haken nur „unbecannt“, man selbst und die schon
+  eingetragenen Verantwortlichen. Alle anderen Member kommen über das Suchfeld
+  darunter dazu (Vorschläge aus `/members/search/?q=…`, Suche in Nutzername,
+  Vor- und Nachname). Ohne JavaScript gibt es das Suchfeld nicht.
+- Jede Crate hat einen Haken „Needs attention“ für alles, was jemand in die
+  Hand nehmen muss, z. B. wenn der Inhalt zu groß für die Kiste ist. Markierte
+  Crates sind in Liste und Detailansicht gekennzeichnet; die Liste lässt sich
+  auf sie einschränken. Zum Haken gehört eine Bemerkung, was genau das Problem
+  ist. Sie wird gelöscht, sobald der Haken herausgenommen wird.
+- Crates tragen Tags mit Bereich, geschrieben `bereich:wert`, z. B. `eva:40c3`
+  für eine Veranstaltung oder `transport:1`, `transport:2` für die Fuhren
+  dorthin. Tags sind eine feste Auswahl: Im Formular der Crate stehen die
+  gewählten als Haken da, weitere kommen über ein Feld dazu, das die übrigen
+  zum Anklicken aufklappt und beim Tippen eingrenzt. Eine Crate kann mehrere
+  Tags desselben Bereichs haben.
+- Die Auswahl pflegen Manager unter „tags“ in der Navigation (`/tags/`):
+  anlegen (auch mehrere auf einmal), umbenennen, löschen. Beim Umbenennen
+  behalten die Crates das Tag, beim Löschen verlieren sie es. Im Admin geht
+  dasselbe unter „Tags“.
+- Die Liste filtert nach Tags: Unter der Suche lassen sich Tags auf dieselbe
+  Art hinzufügen wie im Formular; jedes gewählte gilt sofort. Mehrere Tags
+  schränken weiter ein (die Crate muss alle tragen). Per Adresse:
+  `/?tag=eva:40c3&tag=transport:1`. Die gefilterte Liste zeigt die Anzahl;
+  zusammen mit „alle auswählen“ und der Druckleiste werden daraus Labels und
+  Karten für genau diese Crates. Die Suche findet Tags ebenfalls.
+- Mehrere Crates auf einmal taggen: in der Liste anhaken, unten in der Leiste
+  das Tag wählen und „Tag setzen“ oder „Tag entfernen“ drücken.
+  Alles andere an den Crates bleibt, wie es ist.
+- Packliste: Über der Liste stehen die Verweise „Packliste“ und „CSV“ für alle
+  Crates, auf die Suche und Filter gerade passen, über alle Seiten hinweg
+  (`/packlist/?tag=eva:40c3`, mit `format=csv` als Datei). Für einzelne
+  angehakte Crates gibt es beides auch in der Druckleiste. Die Packliste ist
+  eine Seite zum Ausdrucken mit Kästchen zum Abhaken; die CSV-Datei ist mit
+  Semikolon getrennt und öffnet sich so direkt in Excel und LibreOffice.
+- Mit `format=md` (Verweis „Markdown“) kommt die Packliste als Markdown-Datei
+  mit einer Checkliste zum Abhaken (`- [ ]`), etwa für Wiki, Pad oder Issue;
+  die ID verweist auf die Crate.
 - Lagerorte sind optional, solange es noch keine beschrifteten Lagerflächen gibt.
 
 ## Labels
 
 - Das Label ist so breit wie das 62-mm-Endlosband des Brother QL-700
-  (Querformat) und je nach Schrift nur 17–25 mm lang.
-- Links steht der QR-Code mit der Crate-URL, rechts daneben drei Zeilen, die
-  jeweils die volle Breite füllen: klein „c-base cargo“, groß „crate“, groß
-  die ID. Alles andere ändert sich zu oft; ein Label soll nie neu gedruckt
-  werden müssen.
+  (Querformat) und je nach Schrift nur gut 17–27 mm lang.
+- Links steht der QR-Code mit der Crate-URL und darunter das NFC-Logo
+  (Schriftzug „NFC“ in X-Scale mit drei Funkwellen, wie auf den
+  c-base-Karten). Rechts daneben drei Zeilen, die jeweils die volle Breite
+  füllen: klein „c-base cargo“, groß „crate“, groß die ID. Alles andere ändert
+  sich zu oft; ein Label soll nie neu gedruckt werden müssen.
+- Das NFC-Logo lässt sich mit `LABEL_NFC_LOGO=0` abschalten, etwa für Labels
+  ohne Tag; der QR-Code wird dann größer.
 - Schrift: Der Schriftzug steht in Bai Jamjuree Bold, die ID in Orbitron
   Black, weil Orbitron die Null durchstreicht und sie so nicht mit einem O
   verwechselt wird. Über `LABEL_FONT` lässt sich alles auf `orbitron` oder
@@ -37,8 +81,8 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   `/<ID>/label.png` und als einseitiges PDF unter `/<ID>/label.pdf`. Von
   welchem Gerät gedruckt wird, ist bewusst offen.
 - PDF drucken (erprobt am QL-570 mit dem freien `ptouch`-Treiber):
-  `lp -d QL-570 -o PageSize=Custom.62x32mm -o nopdfAutoRotate crate-0001.pdf`
-  - Die PDF-Seite ist 62 × 32 mm: das Label (25 mm) plus oben und unten gut
+  `lp -d QL-570 -o PageSize=Custom.62x33mm -o nopdfAutoRotate crate-0001.pdf`
+  - Die PDF-Seite ist 62 × 33 mm: das Label (26,5 mm) plus oben und unten gut
     3 mm Rand, die der Drucker nicht bedrucken kann. Die Länge in `PageSize`
     muss zur PDF-Seite passen, sonst wird das Label beschnitten.
   - Ohne `nopdfAutoRotate` und mit `PageSize=62mm` dreht CUPS die querformatige
@@ -57,7 +101,8 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
     enthält. Sie geht ohne Treiber roh an den Drucker:
     `lp -d Brother_QL-700 -o raw crates-0001-0003-ql700.bin` oder direkt
     `cat crates-0001-0003-ql700.bin > /dev/usb/lp0`. Nur für 62-mm- und
-    29-mm-Endlosband.
+    29-mm-Endlosband. Dieselbe Datei für eine einzelne Crate gibt es auf
+    ihrer Detailseite unter „Label als QL-Druckdatei“.
 - `PUBLIC_BASE_URL` (Umgebungsvariable) legt die Adresse fest, die in QR-Code
   und NFC-Tag steht. Sie muss feststehen, bevor Labels gedruckt werden.
 - `LABEL_WIDTH_PX` ist die Druckbreite der Rolle in Pixeln und damit die
@@ -151,11 +196,55 @@ Beim Provider als Redirect-URI eintragen: `<PUBLIC_BASE_URL>/accounts/oidc/callb
 
 - Beim ersten Login wird der Member automatisch angelegt und danach über das
   `sub`-Claim wiedererkannt; Name und E-Mail werden bei jedem Login aktualisiert.
-- Ein Member kann erst als Verantwortlicher gewählt werden, nachdem er sich
-  einmal angemeldet hat.
+- Gibt es beim ersten Login schon ein lokales Konto mit demselben Benutzernamen
+  (`preferred_username`), übernimmt der Member dieses Konto samt Rechten und
+  Crates, statt ein zweites („alice-2“) zu bekommen. Das verlässt sich darauf,
+  dass der Provider Benutzernamen nur an ihre Inhaber vergibt – ein lokales
+  Konto `admin` gehört also demjenigen, der beim Provider `admin` heißt.
+  Ausgenommen sind „unbecannt“ und Konten, die schon zu einem anderen
+  OIDC-Konto gehören.
+- Früher entstand in diesem Fall ein Doppelkonto. Solche alten Paare führt
+  `python manage.py merge_duplicate_members` zusammen: ohne Angabe zeigt es
+  sie nur an, mit `--apply` hängt es Crates, Fotos, Gruppen und die
+  SSO-Verknüpfung an das lokale Konto um und löscht das Doppelkonto.
+- Als Verantwortlicher wählbar ist, wer sich einmal angemeldet hat. Für alle
+  anderen können Manager einen Nick vormerken: Findet das Suchfeld bei den
+  Verantwortlichen niemanden, bietet es „‹nick› als Member vormerken …“ an.
+  Das legt ein Konto nur mit diesem Benutzernamen an, in Auswahllisten
+  gekennzeichnet als „noch nie angemeldet“. Bei ihrer ersten Anmeldung
+  übernimmt die Person es samt ihren Crates (Groß- und Kleinschreibung ist
+  dabei egal). Erinnerungsmails gehen bis dahin an `<nick>@c-base.org`.
+- Ob es einen vorgemerkten Nick wirklich gibt, prüft die App nicht. Ein
+  Tippfehler ergibt ein Konto, das niemand übernimmt; es lässt sich im Admin
+  umbenennen oder löschen. Mit einem Member-Verzeichnis (LDAP o. Ä.) wäre
+  `Member.reserve` in `members/models.py` die Stelle für eine echte Prüfung.
 - Die Login-Seite zeigt den Knopf für den Provider und darunter das Formular
   für lokale Konten; ohne `OIDC_ISSUER_URL` nur das Formular.
 - Admin-Rechte werden nicht vom Provider übernommen, sondern im Admin vergeben.
+
+## Manager und Erinnerungsmails
+
+- „Manager“ ist eine Rolle für alles, was nicht jeder Member tun soll. Technisch
+  ist sie die Gruppe `Manager` (per Migration angelegt). Wer dazugehört, wird im
+  Admin am Member unter „Gruppen“ eingetragen; Superuser sind immer Manager.
+- Erstes Recht der Rolle: die Verantwortlichen aller Crates mit „Needs
+  attention“ per Mail erinnern. In der Liste steht dafür der Knopf
+  „Verantwortliche erinnern …“; er führt auf `/remind/` mit einer Vorschau, wer
+  welche Crates gemeldet bekommt. Verschickt wird erst nach „Mails verschicken“.
+- Jede Person bekommt eine Mail mit allen ihren betroffenen Crates: ID,
+  Bezeichnung, Bemerkung zum Problem und Link. Der Text ist fest
+  (`crates/reminders.py`). Antworten gehen an den Manager, der sie ausgelöst hat.
+- Empfänger ist die Adresse aus dem c-base-Account (OIDC-Claim `email`). Fehlt
+  sie, gilt `<Nutzername>@c-base.org` (`MEMBER_EMAIL_DOMAIN`).
+- Schutz vor Doppelversand: An der Crate wird vermerkt, wann zuletzt erinnert
+  wurde. Frühestens nach `REMINDER_INTERVAL_DAYS` Tagen (Standard 7) gibt es die
+  nächste Mail. Wird der Haken herausgenommen, verfällt der Vermerk.
+- Crates, für die nur „unbecannt“ verantwortlich ist, bekommen keine Mail; die
+  Vorschau führt sie eigens auf.
+- Der Versand braucht einen SMTP-Zugang: `EMAIL_HOST`, `EMAIL_PORT`,
+  `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` (siehe
+  `.env.example`). Ohne `EMAIL_HOST` wird im Betrieb nichts verschickt; in der
+  Entwicklung landen die Mails in der Ausgabe des Servers.
 
 ## Optik
 
@@ -240,7 +329,7 @@ docker compose exec app python manage.py createsuperuser
 Alle Einstellungen kommen aus Umgebungsvariablen. Für die lokale Arbeit stehen
 sie in der Datei `.env` im Projektordner; `.env.example` ist die kommentierte
 Vorlage. Die `.env` wird nicht committet, weil sie Geheimnisse enthält
-(`DJANGO_SECRET_KEY`, `OIDC_CLIENT_SECRET`).
+(`DJANGO_SECRET_KEY`, `OIDC_CLIENT_SECRET`, `EMAIL_HOST_PASSWORD`).
 
 - Echte Umgebungsvariablen haben Vorrang vor der Datei.
 - Nach Änderungen an der `.env` den Server neu starten.

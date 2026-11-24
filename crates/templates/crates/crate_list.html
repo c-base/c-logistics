@@ -1,11 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
   <h1 class="flex-grow-1 m-0">c-base cargo crates</h1>
+  {% if user.is_manager %}<a class="btn btn-secondary page-action" href="{% url 'crates:remind' %}">Verantwortliche erinnern …</a>{% endif %}
   <a class="btn btn-primary page-action" href="{% url 'crates:create' %}">Neue Crate</a>
 </div>
 <form method="get" class="row g-2 align-items-center mb-3">
-  <div class="col-12 col-sm">
+  <div class="col-12 col-sm search-col">
     <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="Name, ID oder Inhalt suchen"
            enterkeyhint="search" autocapitalize="none" aria-label="Suche">
   </div>
@@ -15,10 +17,34 @@
       <span>nur meine</span>
     </label>
   </div>
+  <div class="col-auto">
+    <label class="check-inline">
+      <input type="checkbox" name="attention" value="1" id="filter-attention" {% if attention %}checked{% endif %}>
+      <span>needs attention</span>
+    </label>
+  </div>
   <div class="col-auto ms-auto">
     <button class="btn btn-secondary">Suchen</button>
   </div>
+  {% if tags %}
+  {# Mehrere Tags lassen sich verbinden: Die Crate muss jedes davon tragen. #}
+  <div class="col-12 tag-filter">
+    <div class="tag-picker" id="filter-tags">
+      {% for tag in tags %}<div><label><input type="checkbox" name="tag" value="{{ tag }}"{% if tag|stringformat:"s" in selected_tags %} checked{% endif %}> {{ tag }}</label></div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </form>
+{% if object_list %}
+<p class="list-summary mb-2">
+  <span>{{ paginator.count }} Crate{{ paginator.count|pluralize:"s" }}{% if selected_tags %} mit {% for name in selected_tags %}<span class="tag">{{ name }}</span> {% endfor %}{% endif %}</span>
+  <a href="{% url 'crates:packlist' %}{% if filter_query %}?{{ filter_query }}{% endif %}">Packliste</a>
+  <a href="{% url 'crates:packlist' %}?{% if filter_query %}{{ filter_query }}&amp;{% endif %}format=csv">CSV</a>
+  <a href="{% url 'crates:packlist' %}?{% if filter_query %}{{ filter_query }}&amp;{% endif %}format=md">Markdown</a>
+  {% if selected_tags %}<a href="{% url 'crates:list' %}">Filter aufheben</a>{% endif %}
+</p>
+{% endif %}
 <form method="get" action="{% url 'crates:print' %}" class="crate-select">
 {% if object_list %}
   <label class="crate-row pick-all-row mb-2">
@@ -36,12 +62,15 @@
         <div class="d-flex gap-2">
           <span class="code">{{ crate.code }}</span>
           <strong class="text-white">{{ crate.name }}</strong>
+          {% if crate.needs_attention %}<span class="attention ms-auto">Needs attention</span>{% endif %}
         </div>
+        {% if crate.attention_note %}<div class="attention-note">{{ crate.attention_note|truncatechars:120 }}</div>{% endif %}
         <div class="muted">
           {{ crate.item_count }} Position{{ crate.item_count|pluralize:"en" }}
           · {{ crate.responsible.all|join:", "|default:"niemand verantwortlich" }}
           {% if crate.location %}· {{ crate.location }}{% endif %}
         </div>
+        {% if crate.tags.all %}<div class="tags">{% for tag in crate.tags.all %}<span class="tag"><span class="scope">{{ tag.scope }}:</span>{{ tag.value }}</span>{% endfor %}</div>{% endif %}
       </div>
     </a>
   </div>
@@ -61,9 +90,40 @@
       </label>
       <button class="btn btn-primary" id="print-go">Drucken</button>
     </div>
+    {% if tags %}
+    {# Ohne name: Die Auswahl gehört nicht zum Druckformular. Das Skript unten schickt sie über #tag-form ab. #}
+    <div class="tag-what">
+      <select class="form-select" id="bulk-tags" aria-label="Tag für die ausgewählten Crates">
+        <option value="">Tag wählen …</option>
+        {% regroup tags by scope as bulk_scopes %}
+        {% for scope in bulk_scopes %}
+        <optgroup label="{{ scope.grouper }}">
+          {% for tag in scope.list %}<option value="{{ tag }}">{{ tag }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+      <button type="button" class="btn btn-secondary" data-tag-action="add">Tag setzen</button>
+      <button type="button" class="btn btn-secondary" data-tag-action="remove">Tag entfernen</button>
+    </div>
+    {% endif %}
   </div>
 {% endif %}
 </form>
+<form method="post" action="{% url 'crates:bulk-tag' %}" id="tag-form" hidden>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="tags">
+  <input type="hidden" name="action">
+</form>
+<script src="{% static 'crates/tagpicker.js' %}"></script>
+<script>
+  // Tag-Filter: Ein gewähltes oder herausgenommenes Tag gilt sofort.
+  initTagPicker(document.getElementById('filter-tags'), {
+    placeholder: 'Nach Tag filtern …',
+    onChange: function () { document.getElementById('filter-tags').closest('form').submit(); }
+  });
+</script>
 <script>
   (function () {
     var form = document.querySelector('.crate-select');
@@ -75,7 +135,28 @@
       count.textContent = n ? n + (n === 1 ? ' Crate' : ' Crates') + ' ausgewählt' : 'Crates zum Drucken auswählen';
       all.checked = n === boxes.length;
       document.getElementById('print-go').disabled = !n;
+      tagButtons.forEach(function (button) { button.disabled = !n; });
     }
+    // Tags an allen angehakten Crates setzen oder entfernen
+    var tagForm = document.getElementById('tag-form'), tagInput = document.getElementById('bulk-tags');
+    var tagButtons = Array.prototype.slice.call(document.querySelectorAll('[data-tag-action]'));
+    function sendTags(action) {
+      if (!tagInput.value) return tagInput.focus();
+      tagForm.querySelectorAll('input[name=c]').forEach(function (old) { old.remove(); });
+      form.querySelectorAll('input[name=c]:checked').forEach(function (box) {
+        var copy = document.createElement('input');
+        copy.type = 'hidden';
+        copy.name = 'c';
+        copy.value = box.value;
+        tagForm.appendChild(copy);
+      });
+      tagForm.elements.tags.value = tagInput.value;
+      tagForm.elements.action.value = action;
+      tagForm.submit();
+    }
+    tagButtons.forEach(function (button) {
+      button.addEventListener('click', function () { sendTags(button.dataset.tagAction); });
+    });
     all.addEventListener('change', function () {
       boxes.forEach(function (box) { box.checked = all.checked; });
       update();
@@ -94,9 +175,9 @@
 </script>
 {% if is_paginated %}
   <p class="d-flex gap-3 align-items-center mt-3">
-    {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
+    {% if page_obj.has_previous %}<a href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">← zurück</a>{% endif %}
     <span class="muted">Seite {{ page_obj.number }} von {{ paginator.num_pages }}</span>
-    {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}{% if mine %}&mine=1{% endif %}&page={{ page_obj.next_page_number }}">weiter →</a>{% endif %}
+    {% if page_obj.has_next %}<a href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">weiter →</a>{% endif %}
   </p>
 {% endif %}
 {% endblock %}

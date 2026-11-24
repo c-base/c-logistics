@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{% if object %}{{ object.name }} bearbeiten{% else %}Neue Crate{% endif %}{% endblock %}
 {% block content %}
 <h1>{% if object %}{{ object.name }} bearbeiten{% else %}Neue Crate{% endif %}</h1>
@@ -12,6 +13,157 @@
     </div>
   </div>
 </form>
+<script src="{% static 'crates/tagpicker.js' %}"></script>
+<script>
+  initTagPicker(document.getElementById('id_tags'), { placeholder: 'Tag hinzufügen: tippen oder auswählen …' });
+</script>
+<script>
+  // Die Bemerkung zu „Needs attention“ gibt es nur, solange der Haken gesetzt ist.
+  (function () {
+    var flag = document.getElementById('id_needs_attention'), note = document.getElementById('id_attention_note');
+    if (!flag || !note) return;
+    var row = note.closest('.mb-3');
+    function sync() { row.hidden = !flag.checked; }
+    flag.addEventListener('change', function () {
+      sync();
+      if (flag.checked) note.focus();
+    });
+    sync();
+  })();
+</script>
+<script>
+  // „unbecannt“ ist angehakt, solange kein Member gewählt ist, und geht von selbst
+  // weg, sobald einer gewählt wird. Wer „unbecannt“ anhakt, nimmt die anderen heraus.
+  (function () {
+    var list = document.getElementById('id_responsible');
+    if (!list) return;
+    function boxes() { return Array.prototype.slice.call(list.querySelectorAll('input[name=responsible]')); }
+    var unknown = boxes().filter(function (box) { return box.value === box.dataset.unknown; })[0];
+    function sync() {
+      if (unknown) unknown.checked = !boxes().some(function (box) { return box !== unknown && box.checked; });
+    }
+    list.addEventListener('change', function (event) {
+      if (event.target === unknown && unknown.checked) {
+        boxes().forEach(function (box) { if (box !== unknown) box.checked = false; });
+      }
+      sync();
+    });
+    sync();
+
+    // Weitere Member: im Suchfeld tippen, Vorschlag wählen – er kommt als Haken dazu.
+    var add = document.querySelector('.member-add');
+    if (!add || !window.fetch) return;
+    var input = add.querySelector('input'), results = add.querySelector('.member-results');
+    var found = [], active = -1, timer, latest = 0;
+    add.hidden = false;
+
+    // Nur für Manager: einen Nick vormerken, der sich noch nie angemeldet hat.
+    function reserve(nick) {
+      var question = '„' + nick + '“ hat sich hier noch nie angemeldet. Als Member vormerken?\n\n'
+        + 'Bitte den Nick so schreiben wie im c-base-Account – nur dann übernimmt die Person das Konto bei ihrer ersten Anmeldung.';
+      if (!confirm(question)) return;
+      var body = new URLSearchParams();
+      body.append('username', nick);
+      var token = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+      fetch(add.dataset.addUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': token }, body: body })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.error);
+            return data;
+          });
+        })
+        .then(pick)
+        .catch(function (error) { alert(error.message || 'Vormerken hat nicht geklappt.'); });
+    }
+    function pick(member) {
+      if (member.reserve) return reserve(member.username);
+      var box = boxes().filter(function (candidate) { return candidate.value === String(member.id); })[0];
+      if (!box) {
+        var row = document.createElement('div'), label = document.createElement('label');
+        box = document.createElement('input');
+        box.type = 'checkbox';
+        box.name = 'responsible';
+        box.value = member.id;
+        label.appendChild(box);
+        label.appendChild(document.createTextNode(' ' + member.label));
+        row.appendChild(label);
+        list.appendChild(row);
+      }
+      box.checked = true;
+      sync();
+      input.value = '';
+      show([]);
+      input.focus();
+    }
+    function mark() {
+      Array.prototype.forEach.call(results.querySelectorAll('[role=option]'), function (item, index) {
+        item.classList.toggle('active', index === active);
+        item.setAttribute('aria-selected', index === active ? 'true' : 'false');
+      });
+    }
+    function show(members, searched) {
+      var query = input.value.trim();
+      var known = members.some(function (member) { return member.username.toLowerCase() === query.toLowerCase(); });
+      if (searched && add.dataset.addUrl && !known && /^[\w.-]{1,64}$/.test(query)) {
+        members = members.concat([{ reserve: true, username: query, label: '„' + query + '“ als Member vormerken …' }]);
+      }
+      found = members;
+      active = members.length ? 0 : -1;
+      results.textContent = '';
+      members.forEach(function (member) {
+        var item = document.createElement('li');
+        item.setAttribute('role', 'option');
+        item.textContent = member.label;
+        if (member.reserve) item.className = 'reserve';
+        if (!member.reserve && member.username !== member.label) {
+          var name = document.createElement('span');
+          name.className = 'muted';
+          name.textContent = ' ' + member.username;
+          item.appendChild(name);
+        }
+        item.addEventListener('click', function () { pick(member); });
+        results.appendChild(item);
+      });
+      if (searched && !members.some(function (member) { return !member.reserve; })) {
+        var none = document.createElement('li');
+        none.className = 'none';
+        none.textContent = 'Kein Member gefunden.';
+        results.insertBefore(none, results.firstChild);
+      }
+      mark();
+      results.hidden = !results.children.length;
+      input.setAttribute('aria-expanded', results.hidden ? 'false' : 'true');
+    }
+    function search() {
+      var query = input.value.trim(), ticket = ++latest;
+      if (!query) return show([]);
+      fetch(add.dataset.searchUrl + '?q=' + encodeURIComponent(query), { credentials: 'same-origin' })
+        .then(function (response) { return response.json(); })
+        // eine ältere Antwort darf eine neuere nicht überschreiben
+        .then(function (data) { if (ticket === latest) show(data.results, true); })
+        .catch(function () {});
+    }
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(search, 150);
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        // Enter wählt den Vorschlag und schickt nicht das ganze Formular ab
+        event.preventDefault();
+        if (found[active]) pick(found[active]);
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (!found.length) return;
+        event.preventDefault();
+        active = (active + (event.key === 'ArrowDown' ? 1 : -1) + found.length) % found.length;
+        mark();
+      } else if (event.key === 'Escape') {
+        show([]);
+      }
+    });
+    document.addEventListener('click', function (event) { if (!add.contains(event.target)) show([]); });
+  })();
+</script>
 {% if object %}
 <p class="mt-3"><a href="{% url 'crates:delete' object.code %}">Crate löschen …</a></p>
 {% endif %}

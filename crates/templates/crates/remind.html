@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Verantwortliche erinnern{% endblock %}
+{% block content %}
+<h1>Verantwortliche erinnern</h1>
+<p class="muted">Jede Person bekommt eine Mail mit allen ihren Crates, die „Needs attention“ haben, samt Bemerkung und Link. Antworten gehen an dich ({{ user.email_address }}).</p>
+{% if not mail_enabled %}
+<p class="attention-note">Der Mailversand ist nicht eingerichtet: <code>EMAIL_HOST</code> fehlt in der <code>.env</code>.</p>
+{% endif %}
+
+{% if plan.reminders %}
+<form method="post" class="card transparent">
+  <div class="card-body">
+    {% csrf_token %}
+    {% for reminder in plan.reminders %}
+    <div class="mb-3">
+      <strong class="text-white">{{ reminder.member }}</strong> <span class="muted">{{ reminder.address }}</span>
+      <ul class="mb-0">
+        {% for crate in reminder.crates %}
+        <li><a href="{{ crate.get_absolute_url }}"><span class="code">{{ crate.code }}</span> {{ crate.name }}</a>{% if crate.attention_note %}<div class="attention-note">{{ crate.attention_note|linebreaksbr }}</div>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+    <div class="actions">
+      <button class="btn btn-primary"{% if not mail_enabled %} disabled{% endif %}>{{ plan.reminders|length }} Mail{{ plan.reminders|length|pluralize:"s" }} verschicken</button>
+      <a class="btn btn-secondary" href="{% url 'crates:list' %}?attention=1">Abbrechen</a>
+    </div>
+  </div>
+</form>
+{% else %}
+<p>Im Moment gibt es niemanden zu erinnern.</p>
+<p><a class="btn btn-secondary" href="{% url 'crates:list' %}?attention=1">Zurück zur Liste</a></p>
+{% endif %}
+
+{% if plan.recent %}
+<h2>Schon erinnert</h2>
+<p class="muted">In den letzten {{ interval_days }} Tagen erinnert; diese Crates bekommen jetzt keine weitere Mail.</p>
+<ul>
+  {% for crate in plan.recent %}
+  <li><a href="{{ crate.get_absolute_url }}"><span class="code">{{ crate.code }}</span> {{ crate.name }}</a> <span class="muted">· {{ crate.attention_reminded_at|date:"SHORT_DATE_FORMAT" }}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if plan.unreachable %}
+<h2>Niemand zu erreichen</h2>
+<p class="muted">Bei diesen Crates ist nur „unbecannt“ verantwortlich.</p>
+<ul>
+  {% for crate in plan.unreachable %}
+  <li><a href="{{ crate.get_absolute_url }}"><span class="code">{{ crate.code }}</span> {{ crate.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

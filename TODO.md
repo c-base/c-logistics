@@ -8,38 +8,33 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       `PUBLIC_BASE_URL` in `.env` und `.env.example` eingetragen. Sie steht in
       jedem QR-Code und NFC-Tag und lässt sich danach nicht mehr ändern, ohne alle
       Labels neu zu drucken.
-- [ ] **Druckdatei „Labels QL-700“ am Drucker testen**: Die Rasterdatei mit
-      Schneidbefehl ist nach Brothers Befehlsreferenz und dem Quelltext von
-      brother_ql gebaut, aber noch nie an einen Drucker gegangen. Mit zwei, drei
-      Labels prüfen: Druckbild seitenrichtig und mittig, Schnitt nach jedem Label.
+- [x] **Druckdatei „Labels QL-700“ am Drucker testen**: Die Rasterdatei mit
+      Schneidbefehl ging roh an den Drucker (`lp -o raw`); Druckbild und Schnitt
+      passen.
 - [x] **Testdruck als PDF** am QL-570 (62 mm endlos, `ptouch`-Treiber): passt mit
-      `-o PageSize=Custom.62x32mm -o nopdfAutoRotate`, siehe README.
+      `-o PageSize=Custom.62x33mm -o nopdfAutoRotate`, siehe README.
+- [x] **QR-Code scannen**: gedrucktes Label mit Android gescannt, funktioniert.
 - [ ] **Noch offen beim Drucken**: Sammel-PDF mit mehreren Labels (Schnitt nach
-      jeder Seite?), QR-Code aus üblichem Abstand mit Android scannen, und der
-      QL-700 mit dem Brother-Treiber (`PageSize` dort `62X1` … `62X4`).
+      jeder Seite?) und der QL-700 mit dem Brother-Treiber (`PageSize` dort
+      `62X1` … `62X4`).
 
 ## P1 – vor dem Betrieb
 
-- [ ] **OIDC einrichten**: Issuer-URL, Client-ID und Client-Secret besorgen,
-      Redirect-URI `<Adresse>/accounts/oidc/callback/` beim Provider eintragen,
-      Anmeldung gegen den echten Provider testen (bisher nur simuliert).
-- [ ] **Container zum ersten Mal bauen und starten** (`docker compose up -d
-      --build` bzw. `podman-compose`): Dockerfile und Compose-Dateien sind
-      geschrieben, aber noch nie gebaut worden – auf dem Entwicklungsrechner
-      gibt es weder Docker noch Podman. Auch die Postgres-Variante ist ungetestet.
-- [ ] **Zielrechner und Reverse Proxy**: wo läuft der Container, wer macht HTTPS
-      für `crates.c-base.org`? Proxy auf `127.0.0.1:27283`, `Host` und
-      `X-Forwarded-Proto` durchreichen.
-- [ ] **`.env` auf dem Zielrechner**: neues `DJANGO_SECRET_KEY`,
-      `DJANGO_ALLOWED_HOSTS=crates.c-base.org`, OIDC-Daten.
+- [x] **OIDC einrichten**: Die Anmeldung läuft auf dem Server gegen den echten
+      Provider (c-base-account).
+- [x] **Container zum ersten Mal bauen und starten**: Die App läuft auf dem
+      Server im Container, mit SQLite.
+- [ ] **Postgres-Variante** (`compose.postgres.yaml`) ist weiterhin ungetestet.
+- [x] **Zielrechner und Reverse Proxy**: `https://crates.c-base.org` ist mit
+      HTTPS erreichbar.
+- [x] **`.env` auf dem Zielrechner**: `DJANGO_SECRET_KEY`,
+      `DJANGO_ALLOWED_HOSTS`, OIDC-Daten.
 - [ ] **Datensicherung** einrichten: Volume `data` (SQLite-Datei und Fotos),
       bei Postgres zusätzlich die Datenbank.
 - [ ] **Upload-Grenze am Reverse Proxy** anheben (nginx: `client_max_body_size`,
       Standard 1 MB) – Handyfotos haben 3–12 MB, die App nimmt bis 30 MB je Bild.
-- [ ] **Auf echtem Android-Gerät testen** (Chrome): Scan → Login → Crate,
-      Formulare, aufklappbare Navigation, Foto aufnehmen und hochladen
-      (öffnet „Foto aufnehmen“ wirklich die Kamera?). Bisher nur per Screenshot in
-      Handybreite geprüft; das Aufklappen des Menüs ist ungetestet.
+- [x] **Auf echtem Android-Gerät testen**: Scan → Login → Crate, Formulare,
+      aufklappbare Navigation, Foto aufnehmen und hochladen – funktioniert.
 
 ## P2 – fachliche Entscheidungen
 
@@ -49,8 +44,9 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       durchlässt. Zugang und Admin-Rechte an eine OIDC-Gruppe koppeln?
 - [ ] **Lesen ohne Login**: Soll eine gescannte Crate ohne Anmeldung sichtbar
       sein?
-- [ ] **Verantwortliche vor dem ersten Login**: Member existieren erst nach
-      ihrer ersten Anmeldung. Vorab anlegen oder aus dem Provider synchronisieren?
+- [x] **Verantwortliche vor dem ersten Login**: Manager merken im Suchfeld der
+      Verantwortlichen einen Nick vor; bei der ersten Anmeldung übernimmt die
+      Person das Konto. Ein Abgleich mit einem Member-Verzeichnis bleibt möglich.
 - [ ] **Nummernvergabe**: Die höchste Nummer wird nach dem Löschen neu vergeben
       (altes Label zeigt dann auf die neue Crate). Festen Zähler einbauen?
 - [ ] **`0000` /dev/null**: Löschschutz? Sollen entfernte Inhaltspositionen
@@ -61,16 +57,18 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       und mit c-base klären, ob und wann `bootstrap5` der Hauptzweig wird.
 - [ ] **App-Icons aus einer größeren Logo-Vorlage** erzeugen (`manage.py
       make_icons <logo>`); bisher das 96-px-Stationslogo aus c-beam-droid,
-      hochskaliert und unscharf. Danach Installation auf einem
-      Android-Gerät testen: App installieren, QR-Code scannen – öffnet sich die App?
-- [ ] **Logo** stammt von c-beam (`crates/static/crates/logo.png`) – klären,
-      ob es hier im Repository liegen darf.
+      hochskaliert und unscharf.
+- [x] **App auf Android installieren**: installiert; ein gescannter QR-Code
+      öffnet die App.
+- [x] **Logo** stammt von c-beam (`crates/static/crates/logo.png`) – geklärt,
+      es darf hier im Repository liegen.
 
 ## P3 – Aufräumen
 
 - [ ] Nicht gewählte Label-Schriften aus `crates/fonts/` und `FONTS` entfernen
-      (Anybody; Standard ist Bai Jamjuree mit Orbitron-Nummer); `XScale.ttf` ist
-      bereits unbenutzt.
+      (Anybody; Standard ist Bai Jamjuree mit Orbitron-Nummer).
+- [x] **Lizenz von `XScale.ttf` klären**: geklärt; die Schrift für das
+      NFC-Logo darf im öffentlichen Repository liegen.
 - [ ] `LABEL_WIDTH_PX` für andere Rollenbreiten testen (29 mm).
 - [ ] Oberfläche nur deutsch – Englisch / Übersetzungen bei Bedarf.
 
@@ -80,8 +78,9 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       benötigt HTTPS) statt über eine externe App.
 - [ ] Labels direkt vom Server auf dem QL-700 drucken, sobald feststeht, an
       welchem Gerät der Drucker hängt.
-- [ ] Mehrere Labels in einem Rutsch drucken.
+- [x] Mehrere Labels in einem Rutsch drucken (in der Liste anhaken, dann
+      „Labels als PDF“ oder „Labels als QL-Druckdatei“).
 - [ ] Lagerorte pflegen, sobald es beschriftete Lagerflächen gibt (Feld ist
       schon vorhanden).
 - [ ] Verlauf: wer hat wann was geändert oder bewegt.
-- [ ] Fotos von Crate und Inhalt.
+- [x] Fotos von Crate und Inhalt.

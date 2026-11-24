@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Tags verwalten{% endblock %}
+{% block content %}
+<h1>Tags verwalten</h1>
+<p class="muted">Tags haben die Form <code>bereich:wert</code>, z. B. <code>eva:40c3</code> oder <code>transport:1</code>. Nur was hier steht, lässt sich an Crates auswählen.</p>
+
+<h2>Neues Tag</h2>
+<form method="post" class="card transparent">
+  <div class="card-body">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add">
+    <div class="tag-edit">
+      <input class="form-control" name="names" value="{{ entered }}" placeholder="eva:40c3 oder mehrere: transport:1 transport:2" required
+             autocapitalize="none" autocomplete="off" spellcheck="false" aria-label="Neue Tags, mit Leerzeichen getrennt">
+      <button class="btn btn-primary">Anlegen</button>
+    </div>
+  </div>
+</form>
+
+<h2>Vorhandene Tags</h2>
+{% regroup tags by scope as scopes %}
+{% for scope in scopes %}
+<div class="card transparent mb-2">
+  <div class="card-body">
+    <h3 class="h6 text-white">{{ scope.grouper }}</h3>
+    {% for tag in scope.list %}
+    <div class="tag-row">
+      <form method="post" class="tag-edit">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rename">
+        <input type="hidden" name="tag" value="{{ tag.pk }}">
+        <input class="form-control" name="name" value="{{ tag }}" required autocapitalize="none" autocomplete="off" spellcheck="false" aria-label="Name von {{ tag }}">
+        <button class="btn btn-secondary">Umbenennen</button>
+      </form>
+      <a class="muted" href="{% url 'crates:list' %}?tag={{ tag|urlencode }}">{{ tag.crate_count }} Crate{{ tag.crate_count|pluralize:"s" }}</a>
+      <form method="post" onsubmit="return confirm('Tag „{{ tag|escapejs }}“ löschen?{% if tag.crate_count %} {{ tag.crate_count }} Crate{{ tag.crate_count|pluralize:"s" }} verlier{{ tag.crate_count|pluralize:"t,en" }} es.{% endif %}')">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="tag" value="{{ tag.pk }}">
+        <button class="btn btn-link">löschen</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<p class="muted">Noch keine Tags.</p>
+{% endfor %}
+{% endblock %}

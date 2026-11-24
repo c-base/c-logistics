@@ -99,43 +99,103 @@ class _Typeface:
         return lines, code_baseline
 
 
-def render_label(url, code, tape_px=None, font=None):
+# --- NFC-Logo ---------------------------------------------------------------
+# Schriftzug „NFC“ in X-Scale, rechts daneben drei Funkwellen – dieselbe
+# Zeichnung wie auf den c-base-Karten (cbag3). Es steht unter dem QR-Code und
+# zeigt, dass im Label ein NFC-Tag steckt.
+NFC_FONT = 'XScale.ttf'
+NFC_WAVE_ANGLE = 58      # halber Öffnungswinkel der Wellen in Grad
+NFC_WAVE_STROKE = 0.11   # Strichstärke, als Anteil der Logohöhe
+NFC_TEXT_GAP = 0.08      # Abstand zwischen Schriftzug und Wellen
+NFC_LOGO_GAP = 2         # Abstand zwischen QR-Code und Logo in Modulen
+
+
+def _nfc_metrics():
+    """(Breite je Höhe des Logos, Schriftgröße je Höhe, Versalhöhe je Schriftgröße)."""
+    probe = ImageFont.truetype(str(FONT_DIR / NFC_FONT), 1000)
+    left, top, right, bottom = probe.getbbox('NFC', anchor='ls')
+    cap = -top / 1000
+    text_width = (right - left) / 1000
+    # Versalhöhe = halbe Logohöhe; die äußerste Welle ist so hoch wie das Logo.
+    size_per_height = 0.5 / cap
+    waves = 1 / (2 * math.sin(math.radians(NFC_WAVE_ANGLE)))
+    return size_per_height * text_width + NFC_TEXT_GAP + waves, size_per_height, cap
+
+
+def nfc_logo(width):
+    """Das NFC-Logo als Schwarz-Weiß-Bild in der angegebenen Breite."""
+    width_per_height, size_per_height, cap = _nfc_metrics()
+    height = width / width_per_height
+    image = Image.new('1', (round(width), math.ceil(height)), 1)
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype(str(FONT_DIR / NFC_FONT), height * size_per_height)
+    ink_left, _, ink_right, _ = font.getbbox('NFC', anchor='ls')
+    middle = height / 2
+    draw.text((-ink_left, middle + cap * font.size / 2), 'NFC', font=font, fill=0, anchor='ls')
+    # Mittelpunkt der Wellen kurz hinter dem C
+    center = ink_right - ink_left + NFC_TEXT_GAP * height
+    stroke = max(1.0, NFC_WAVE_STROKE * height)
+    outer = height / (2 * math.sin(math.radians(NFC_WAVE_ANGLE))) - stroke / 2
+    for radius in (0.42 * outer, 0.71 * outer, outer):
+        box = [center - radius - stroke / 2, middle - radius - stroke / 2,
+               center + radius + stroke / 2, middle + radius + stroke / 2]
+        draw.arc(box, -NFC_WAVE_ANGLE, NFC_WAVE_ANGLE, fill=0, width=round(stroke))
+        # runde Strichenden
+        for sign in (-1, 1):
+            x = center + radius * math.cos(math.radians(NFC_WAVE_ANGLE))
+            y = middle + sign * radius * math.sin(math.radians(NFC_WAVE_ANGLE))
+            draw.ellipse([x - stroke / 2, y - stroke / 2, x + stroke / 2, y + stroke / 2], fill=0)
+    return image
+
+
+def render_label(url, code, tape_px=None, font=None, nfc=None):
     """Zeichnet das Label als Schwarz-Weiß-Bild in voller Bandbreite.
 
-    Links der QR-Code, rechts daneben der Schriftzug und die ID. Der Textblock
-    ist genau so hoch wie der QR-Code; beide zusammen füllen die Bandbreite.
+    Links der QR-Code und darunter das NFC-Logo, rechts daneben der Schriftzug
+    und die ID. Der Textblock ist genau so hoch wie die linke Spalte; beide
+    zusammen füllen die Bandbreite. Mit nfc=False (oder LABEL_NFC_LOGO=0)
+    entfällt das Logo, und der QR-Code wird entsprechend größer.
     """
     tape_px = tape_px or settings.LABEL_WIDTH_PX
     typeface = _Typeface(font or settings.LABEL_FONT)
+    nfc = settings.LABEL_NFC_LOGO if nfc is None else nfc
     qr = qrcode.QRCode(border=0, error_correction=qrcode.constants.ERROR_CORRECT_Q)
     qr.add_data(url)
     qr.make(fit=True)
     modules = qr.modules
     count = len(modules)
 
-    # Der Textblock ist bei gleicher Höhe ein festes Vielfaches breiter als der
-    # QR-Code. Daraus folgt die größte ganzzahlige Modulgröße, bei der beides
+    # Linke Spalte in Modulen: QR-Code, darunter Abstand und das Logo in QR-Breite.
+    column_modules = count
+    if nfc:
+        column_modules += NFC_LOGO_GAP + count / _nfc_metrics()[0]
+    # Der Textblock ist bei gleicher Höhe ein festes Vielfaches breiter als hoch.
+    # Daraus folgt die größte ganzzahlige Modulgröße, bei der beides
     # nebeneinander auf das Band passt (ganzzahlig für scharfe Kanten im Thermodruck).
     width_per_height = 1000 / typeface.text_block(1000, code)[1]
-    module_px = int(tape_px / (count * (1 + width_per_height) + 2 * EDGE + QUIET_ZONE))
+    module_px = int(tape_px / (count + column_modules * width_per_height + 2 * EDGE + QUIET_ZONE))
     if module_px < 1:
         raise ValueError('Das Band ist zu schmal für QR-Code und Text.')
     qr_px = module_px * count
     edge = module_px * EDGE
-    block_width = qr_px * width_per_height
+    logo = nfc_logo(qr_px) if nfc else None
+    column_px = qr_px + (module_px * NFC_LOGO_GAP + logo.height if logo else 0)
+    block_width = column_px * width_per_height
     lines, _ = typeface.text_block(block_width, code)
 
     content_width = edge + qr_px + module_px * QUIET_ZONE + block_width + edge
     left = edge + round((tape_px - content_width) / 2)
     text_left = left + qr_px + module_px * QUIET_ZONE
 
-    image = Image.new('1', (tape_px, qr_px + 2 * edge), 1)
+    image = Image.new('1', (tape_px, column_px + 2 * edge), 1)
     draw = ImageDraw.Draw(image)
     for y, row in enumerate(modules):
         for x, dark in enumerate(row):
             if dark:
                 x0, y0 = left + x * module_px, edge + y * module_px
                 draw.rectangle([x0, y0, x0 + module_px - 1, y0 + module_px - 1], fill=0)
+    if logo:
+        image.paste(logo, (left, edge + column_px - logo.height))
     for text, line_font, baseline, features in lines:
         draw.text((text_left, edge + baseline), text, font=line_font, fill=0, anchor='ls', features=features)
     return image
