@@ -979,11 +979,12 @@ class DescribeTests(TestCase):
 
     @mock.patch('crates.describe.requests.post')
     def test_photo_is_sent_as_jpeg_and_the_answer_is_stored(self, post):
-        post.return_value = ai_answer('Vier HDMI-Kabel\n und ein Netzteil. ')
+        post.return_value = ai_answer('- 4 HDMI-Kabel\n\n  Netzteil  „12 V“ \n2. USB-Hub\n* E-Mail-Ausdruck\n')
         photo = self.photo()
         self.assertTrue(describe.describe_photo(photo))
         photo.refresh_from_db()
-        self.assertEqual(photo.description, 'Vier HDMI-Kabel und ein Netzteil.')
+        # ein Stichpunkt je Zeile, ohne Aufzählungszeichen und Leerzeilen
+        self.assertEqual(photo.description, '4 HDMI-Kabel\nNetzteil „12 V“\nUSB-Hub\nE-Mail-Ausdruck')
         (url,), kwargs = post.call_args
         self.assertEqual(url, 'https://ki.example/v1/chat/completions')
         self.assertEqual(kwargs['timeout'], 5)
@@ -1027,10 +1028,70 @@ class DescribeTests(TestCase):
         describe.describe_later([photo])
         thread.assert_called_once()
 
+    @mock.patch('crates.describe.threading.Thread')
+    def test_page_shows_whether_the_analysis_is_running_failed_or_missing(self, thread):
+        photo = self.photo()
+        url = self.crate.get_absolute_url()
+        self.assertEqual(photo.analysis_state, 'none')
+        self.assertContains(self.client.get(url), 'Noch nicht von der KI analysiert')
+        describe.describe_later([photo])
+        photo.refresh_from_db()
+        self.assertEqual(photo.analysis_state, 'running')
+        self.assertContains(self.client.get(url), 'KI analysiert das Foto')
+        # ohne Lebenszeichen des Threads (App neu gestartet) gilt die Analyse als gescheitert
+        Photo.objects.filter(pk=photo.pk).update(analysis_at=timezone.now() - timedelta(seconds=70))
+        photo.refresh_from_db()
+        self.assertEqual(photo.analysis_state, 'failed')
+        page = self.client.get(url)
+        self.assertContains(page, 'KI-Analyse fehlgeschlagen')
+        self.assertContains(page, reverse('crates:photo-describe', args=[self.crate.code, photo.pk]))
+        with override_settings(AI_BASE_URL=''):
+            page = self.client.get(url)
+            self.assertContains(page, 'KI-Analyse fehlgeschlagen')
+            self.assertNotContains(page, 'erneut versuchen')
+            Photo.objects.filter(pk=photo.pk).update(analysis='')
+            self.assertNotContains(self.client.get(url), 'von der KI analysiert')
+
+    @mock.patch('crates.describe.requests.post')
+    def test_background_run_records_success_and_failure(self, post):
+        good, bad = self.photo(), self.photo()
+        post.side_effect = lambda *args, **kwargs: ai_answer('Zange') if post.call_count == 1 else ai_answer('')
+        with mock.patch('crates.describe.threading.Thread') as thread, mock.patch('crates.describe.connection'):
+            describe.describe_later([good, bad])
+            (_, kwargs), = thread.call_args_list
+            with self.assertLogs('crates.describe', 'WARNING'):
+                kwargs['target'](*kwargs['args'])
+        states = sorted(photo.analysis_state for photo in Photo.objects.all())
+        self.assertEqual(states, ['done', 'failed'])
+        self.assertEqual(Photo.objects.filter(analysis='pending').count(), 0)
+
+    @mock.patch('crates.describe.threading.Thread')
+    def test_status_is_reloaded_and_a_failed_analysis_can_be_repeated(self, thread):
+        photo = self.photo(analysis='failed')
+        status_url = reverse('crates:photo-status', args=[self.crate.code])
+        self.assertContains(self.client.get(self.crate.get_absolute_url()), status_url)
+        status = self.client.get(status_url).json()['photos'][str(photo.pk)]
+        self.assertEqual(status['state'], 'failed')
+        self.assertIn('erneut versuchen', status['html'])
+        retry = reverse('crates:photo-describe', args=[self.crate.code, photo.pk])
+        self.assertEqual(self.client.get(retry).status_code, 405)
+        self.assertRedirects(self.client.post(retry), f'{self.crate.get_absolute_url()}#fotos')
+        thread.assert_called_once()
+        self.assertEqual(self.client.get(status_url).json()['photos'][str(photo.pk)]['state'], 'running')
+        # läuft schon: kein zweiter Auftrag
+        self.client.post(retry)
+        thread.assert_called_once()
+        Photo.objects.filter(pk=photo.pk).update(analysis='', description='Zange')
+        status = self.client.get(status_url).json()['photos'][str(photo.pk)]
+        self.assertEqual((status['state'], 'Zange' in status['html']), ('done', True))
+        self.client.logout()
+        self.assertEqual(self.client.get(status_url).status_code, 302)
+        self.assertEqual(self.client.post(retry).status_code, 302)
+
     def test_description_is_shown_and_found_by_the_search(self):
-        self.photo(description='Ein Lötkolben <und> Lötzinn.')
+        self.photo(description='Lötkolben <alt>\nLötzinn')
         page = self.client.get(self.crate.get_absolute_url())
-        self.assertContains(page, 'Ein Lötkolben &lt;und&gt; Lötzinn.')
+        self.assertContains(page, 'Lötkolben &lt;alt&gt;<br>Lötzinn')
         Crate.objects.create(name='Leer')
         found = self.client.get(reverse('crates:list'), {'q': 'lötkolben'})
         self.assertEqual(list(found.context['object_list']), [self.crate])

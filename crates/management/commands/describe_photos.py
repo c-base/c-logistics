@@ -22,7 +22,7 @@ class Command(BaseCommand):
         failed = 0
         for photo in photos:
             if describe.describe_photo(photo):
-                self.stdout.write(f'{photo}: {photo.description}')
+                self.stdout.write(f'{photo}: ' + photo.description.replace('\n', ', '))
             else:
                 failed += 1
                 self.stderr.write(f'{photo}: keine Beschreibung')

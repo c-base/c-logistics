@@ -63,11 +63,11 @@
 <div class="card transparent">
   <div class="card-body">
     {% if crate.photos.all %}
-    <div class="photos">
+    <div class="photos" data-status-url="{% url 'crates:photo-status' crate.code %}">
       {% for photo in crate.photos.all %}
       <figure>
         <a href="{% url 'crates:photo' crate.code photo.pk %}"><img src="{% url 'crates:photo-thumbnail' crate.code photo.pk %}" loading="lazy" alt="{{ photo.description|default:"Foto vom Inhalt" }}"></a>
-        {% if photo.description %}<p class="description">{{ photo.description }}</p>{% endif %}
+        <div class="analysis" data-photo="{{ photo.pk }}" data-state="{{ photo.analysis_state }}">{% include 'crates/photo_analysis.html' %}</div>
         <figcaption>
           <span class="muted">{{ photo.created_at|date:"SHORT_DATE_FORMAT" }}{% if photo.uploaded_by %} · {{ photo.uploaded_by }}{% endif %}</span>
           <form method="post" action="{% url 'crates:photo-delete' crate.code photo.pk %}" onsubmit="return confirm('Foto löschen?')">
@@ -105,6 +105,27 @@
       form.submit();
     });
   });
+  // Solange die KI ein Foto analysiert, den Stand nachladen – ohne die Seite neu zu laden.
+  (function () {
+    var box = document.querySelector('.photos');
+    if (!box) return;
+    function poll() {
+      if (!box.querySelector('.analysis[data-state=running]')) return;
+      fetch(box.dataset.statusUrl, {credentials: 'same-origin'})
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          box.querySelectorAll('.analysis').forEach(function (element) {
+            var photo = data.photos[element.dataset.photo];
+            if (!photo || photo.state === element.dataset.state) return;
+            element.dataset.state = photo.state;
+            element.innerHTML = photo.html;
+          });
+        })
+        .catch(function () {})
+        .then(function () { setTimeout(poll, 4000); });
+    }
+    setTimeout(poll, 4000);
+  })();
 </script>
 
 <h2>Label &amp; NFC-Tag</h2>

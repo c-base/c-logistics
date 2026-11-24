@@ -8,6 +8,7 @@ from django.db.models import Count, Q
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -15,6 +16,7 @@ from django.utils.formats import date_format
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import generic
 
+from . import describe
 from .describe import describe_later
 from .forms import CrateForm, ItemForm
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
@@ -128,6 +130,7 @@ class CrateDetailView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['item_form'] = ItemForm()
+        context['ai_enabled'] = describe.enabled()
         context['public_url'] = public_url(self.object, self.request)
         context['base_url_configured'] = bool(settings.PUBLIC_BASE_URL)
         context['copies'] = settings.PRINT_COPIES
@@ -661,6 +664,33 @@ class PhotoFileView(LoginRequiredMixin, PhotoLookupMixin, generic.View):
         # Ein Foto ändert sich nie, es wird höchstens gelöscht.
         response['Cache-Control'] = 'private, max-age=86400'
         return response
+
+
+class PhotoStatusView(LoginRequiredMixin, generic.View):
+    """Stand der KI-Analyse aller Fotos einer Crate; die Detailseite fragt nach, solange eine läuft."""
+
+    def get(self, request, *args, **kwargs):
+        crate = get_object_or_404(Crate, code=normalize_code(kwargs['code']))
+        context = {'ai_enabled': describe.enabled()}
+        return JsonResponse({'photos': {
+            photo.pk: {
+                'state': photo.analysis_state,
+                'html': render_to_string('crates/photo_analysis.html', {**context, 'photo': photo}, request),
+            }
+            for photo in crate.photos.select_related('crate')
+        }})
+
+
+class PhotoDescribeView(LoginRequiredMixin, PhotoLookupMixin, generic.View):
+    """Schickt ein Foto (noch einmal) an die KI, wenn es keine Beschreibung hat."""
+
+    def post(self, request, *args, **kwargs):
+        photo = self.get_photo()
+        if not describe.enabled():
+            messages.error(request, 'Die KI-Analyse ist nicht eingerichtet (AI_BASE_URL).')
+        elif photo.analysis_state in ('failed', 'none'):
+            describe_later([photo])
+        return redirect(f'{photo.crate.get_absolute_url()}#fotos')
 
 
 class PhotoDeleteView(LoginRequiredMixin, PhotoLookupMixin, generic.DeleteView):

@@ -6,22 +6,31 @@ https://ai.cbrp3.c-base.org/bonsai/v1). Ohne `AI_BASE_URL` passiert nichts.
 """
 import base64
 import logging
+import re
 import threading
 
 import requests
 from django.conf import settings
 from django.db import connection
+from django.utils import timezone
+
+from .models import ANALYSIS_FAILED, ANALYSIS_PENDING
 
 logger = logging.getLogger(__name__)
 
 PROMPT = (
-    'Das Foto zeigt den Inhalt einer Lagerkiste. Zähle auf Deutsch in ein bis drei '
-    'kurzen Sätzen auf, welche Gegenstände zu sehen sind, und gib lesbare '
-    'Beschriftungen wörtlich wieder. Nur Fließtext, keine Einleitung, keine Listen, '
-    'kein Markdown. Beschreibe nicht den Hintergrund und rate nicht.'
+    'Das Foto zeigt den Inhalt einer Lagerkiste. Liste auf Deutsch in Stichpunkten '
+    'die wesentlichen Gegenstände auf: ein Stichpunkt je Zeile, jeweils nur wenige '
+    'Wörter – der Gegenstand, lesbare Beschriftungen wörtlich. Lass Nebensächliches '
+    'und Kleinkram weg, höchstens acht Zeilen. Nenne eine Anzahl nur, wenn du die '
+    'Gegenstände zweifelsfrei zählen kannst; sonst lass sie weg und schätze nicht. '
+    'Keine ganzen Sätze, keine Einleitung, keine Aufzählungszeichen, kein Markdown. '
+    'Beschreibe nicht den Hintergrund und rate nicht.'
 )
-# Reicht für drei Sätze; begrenzt die Wartezeit, falls das Modell abschweift.
+# Reicht für acht Stichpunkte; begrenzt die Wartezeit, falls das Modell abschweift.
 MAX_TOKENS = 300
+# Aufzählungszeichen und Nummern, die das Modell trotzdem vor einen Stichpunkt setzt
+BULLET = re.compile(r'^(?:[-*•–·]+|\d+[.)])\s+')
 
 
 class DescribeError(Exception):
@@ -33,7 +42,7 @@ def enabled():
 
 
 def describe_image(jpeg):
-    """Schickt ein JPEG (Bytes) an die KI und gibt die Beschreibung zurück."""
+    """Schickt ein JPEG (Bytes) an die KI und gibt die Stichpunkte zurück, einen je Zeile."""
     picture = 'data:image/jpeg;base64,' + base64.b64encode(jpeg).decode('ascii')
     try:
         response = requests.post(
@@ -55,37 +64,45 @@ def describe_image(jpeg):
         text = response.json()['choices'][0]['message']['content']
     except (requests.RequestException, ValueError, LookupError, TypeError) as error:
         raise DescribeError(str(error)) from error
-    text = ' '.join((text or '').split())
+    lines = (BULLET.sub('', ' '.join(line.split())) for line in (text or '').splitlines())
+    text = '\n'.join(line for line in lines if line)
     if not text:
         raise DescribeError('leere Antwort')
     return text
 
 
 def describe_photo(photo):
-    """Beschreibt ein Foto und speichert den Text. Gibt zurück, ob es geklappt hat."""
+    """Beschreibt ein Foto und speichert Text und Stand. Gibt zurück, ob es geklappt hat."""
+    photos = type(photo).objects.filter(pk=photo.pk)
     try:
         with photo.image.open('rb') as file:
             jpeg = file.read()
         description = describe_image(jpeg)
     except (DescribeError, OSError) as error:
         logger.warning('Foto %s ließ sich nicht beschreiben: %s', photo.pk, error)
+        photos.update(analysis=ANALYSIS_FAILED)
+        photo.analysis = ANALYSIS_FAILED
         return False
-    # Nur dieses Feld schreiben; das Foto kann inzwischen gelöscht sein.
-    type(photo).objects.filter(pk=photo.pk).update(description=description)
-    photo.description = description
+    # Nur diese Felder schreiben; das Foto kann inzwischen gelöscht sein.
+    photos.update(description=description, analysis='')
+    photo.description, photo.analysis = description, ''
     return True
 
 
 def _describe_all(pks):
     from .models import Photo
 
+    waiting = Photo.objects.filter(pk__in=pks, analysis=ANALYSIS_PENDING)
     try:
         # Nacheinander: die KI nimmt nur zwei gleichzeitige Anfragen je Absender an.
-        for photo in Photo.objects.filter(pk__in=pks, description=''):
+        for photo in list(waiting):
+            # Lebenszeichen für alle, die noch anstehen – sonst gelten sie als abgebrochen.
+            waiting.update(analysis_at=timezone.now())
             describe_photo(photo)
     except Exception:
         logger.exception('Beschreiben der Fotos %s abgebrochen', pks)
     finally:
+        waiting.update(analysis=ANALYSIS_FAILED)
         connection.close()
 
 
@@ -95,6 +112,10 @@ def describe_later(photos):
     Was dabei scheitert (KI nicht erreichbar, Neustart der App), holt
     `manage.py describe_photos` nach.
     """
+    from .models import Photo
+
     pks = [photo.pk for photo in photos]
     if pks and enabled():
+        # Sofort vermerken, damit die Seite „wird analysiert“ zeigt, bevor der Thread anläuft.
+        Photo.objects.filter(pk__in=pks).update(analysis=ANALYSIS_PENDING, analysis_at=timezone.now())
         threading.Thread(target=_describe_all, args=(pks,), daemon=True).start()

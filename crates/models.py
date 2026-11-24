@@ -1,5 +1,6 @@
 import re
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -7,8 +8,12 @@ from django.db import IntegrityError, models, transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.urls import reverse
+from django.utils import timezone
 
 CODE_DIGITS = 4
+
+ANALYSIS_PENDING = 'pending'
+ANALYSIS_FAILED = 'failed'
 MAX_NUMBER = 16 ** CODE_DIGITS - 1
 
 
@@ -200,6 +205,15 @@ class Photo(models.Model):
         'Beschreibung', blank=True,
         help_text='Was auf dem Foto zu sehen ist. Schreibt die KI nach dem Hochladen (crates/describe.py).',
     )
+    # Leer = keine Analyse offen: beschrieben, wenn `description` gefüllt ist, sonst nie angefragt.
+    analysis = models.CharField(
+        'KI-Analyse', max_length=10, blank=True,
+        choices=[(ANALYSIS_PENDING, 'läuft'), (ANALYSIS_FAILED, 'fehlgeschlagen')],
+    )
+    analysis_at = models.DateTimeField(
+        'Lebenszeichen der Analyse', null=True, blank=True, editable=False,
+        help_text='Setzt der Hintergrund-Thread, solange das Foto bei ihm ansteht.',
+    )
 
     class Meta:
         verbose_name = 'Foto'
@@ -208,6 +222,18 @@ class Photo(models.Model):
 
     def __str__(self):
         return f'Foto {self.pk} von {self.crate.code}'
+
+    @property
+    def analysis_state(self):
+        """Stand der KI-Analyse für die Anzeige: running, done, failed oder none."""
+        if self.analysis == ANALYSIS_PENDING:
+            # Ohne Lebenszeichen ist der Thread weg, etwa nach einem Neustart der App.
+            alive = timezone.now() - timedelta(seconds=settings.AI_TIMEOUT + 60)
+            if self.analysis_at and self.analysis_at > alive:
+                return 'running'
+        if self.description:
+            return 'done'
+        return 'failed' if self.analysis else 'none'
 
     @classmethod
     def create_from_upload(cls, crate, upload, member=None):

@@ -38,6 +38,6 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Photo)
 class PhotoAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'crate', 'uploaded_by', 'created_at', 'description']
+    list_display = ['__str__', 'crate', 'uploaded_by', 'created_at', 'analysis', 'description']
     search_fields = ['description', 'crate__code', 'crate__name']
     readonly_fields = ['image', 'thumbnail', 'uploaded_by']

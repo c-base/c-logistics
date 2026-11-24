@@ -1,0 +1,12 @@
+{# Stand der KI-Analyse eines Fotos. Wird auch von PhotoStatusView nachgeladen, solange die Analyse läuft. #}
+{% if photo.analysis_state == 'running' %}
+<p class="description muted"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> KI analysiert das Foto …</p>
+{% elif photo.analysis_state == 'done' %}
+<p class="description">{{ photo.description|linebreaksbr }}</p>
+{% elif photo.analysis_state == 'failed' or ai_enabled %}
+<form method="post" action="{% url 'crates:photo-describe' photo.crate.code photo.pk %}" class="description">
+  {% csrf_token %}
+  {% if photo.analysis_state == 'failed' %}<span class="text-warning">KI-Analyse fehlgeschlagen</span>{% else %}<span class="muted">Noch nicht von der KI analysiert</span>{% endif %}
+  {% if ai_enabled %}· <button class="btn btn-link">{% if photo.analysis_state == 'failed' %}erneut versuchen{% else %}analysieren{% endif %}</button>{% endif %}
+</form>
+{% endif %}
