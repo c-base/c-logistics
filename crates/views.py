@@ -128,6 +128,10 @@ class CrateDetailView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
         context['public_url'] = public_url(self.object, self.request)
         context['base_url_configured'] = bool(settings.PUBLIC_BASE_URL)
         context['copies'] = settings.PRINT_COPIES
+        # Nachbarn in der Reihenfolge der IDs: zum Blättern, auf dem Telefon per Wischen
+        neighbours = Crate.objects.only('code', 'name')
+        context['previous_crate'] = neighbours.filter(code__lt=self.object.code).order_by('-code').first()
+        context['next_crate'] = neighbours.filter(code__gt=self.object.code).order_by('code').first()
         return context
 
 

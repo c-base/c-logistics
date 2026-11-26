@@ -1,6 +1,43 @@
 {% extends "base.html" %}
 {% block title %}{{ crate.name }}{% endblock %}
 {% block content %}
+{% if previous_crate or next_crate %}
+<nav class="crate-nav" id="crate-nav" aria-label="Benachbarte Crates">
+  {% if previous_crate %}<a rel="prev" href="{{ previous_crate.get_absolute_url }}" title="{{ previous_crate.name }}">‹ <span class="code">{{ previous_crate.code }}</span></a>{% else %}<span></span>{% endif %}
+  {% if next_crate %}<a rel="next" href="{{ next_crate.get_absolute_url }}" title="{{ next_crate.name }}"><span class="code">{{ next_crate.code }}</span> ›</a>{% endif %}
+</nav>
+<script>
+  // Wischen blättert: nach links zur nächsten, nach rechts zur vorherigen Crate.
+  (function () {
+    var nav = document.getElementById('crate-nav'), start = null;
+    function scrollsSideways(node) {
+      for (; node && node !== document.body; node = node.parentElement) {
+        if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(node).overflowX)) return true;
+      }
+      return false;
+    }
+    document.addEventListener('touchstart', function (event) {
+      start = null;
+      if (event.touches.length !== 1) return;
+      // nicht in Eingabefeldern (Cursor setzen, Regler) und nicht in seitlich rollbaren Bereichen
+      if (event.target.closest('input, textarea, select, [contenteditable]') || scrollsSideways(event.target)) return;
+      start = {x: event.touches[0].clientX, y: event.touches[0].clientY, at: Date.now()};
+    }, {passive: true});
+    document.addEventListener('touchcancel', function () { start = null; }, {passive: true});
+    document.addEventListener('touchend', function (event) {
+      if (!start || event.touches.length) return;
+      var touch = event.changedTouches[0], dx = touch.clientX - start.x, dy = touch.clientY - start.y;
+      var quick = Date.now() - start.at < 700;
+      start = null;
+      // deutlich waagerecht, zügig, und nicht beim Markieren von Text
+      if (!quick || Math.abs(dx) < 70 || Math.abs(dx) < 2.5 * Math.abs(dy)) return;
+      if (String(window.getSelection())) return;
+      var link = nav.querySelector(dx < 0 ? 'a[rel=next]' : 'a[rel=prev]');
+      if (link) location.href = link.href;
+    }, {passive: true});
+  })();
+</script>
+{% endif %}
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
   <h1 class="flex-grow-1 m-0">{{ crate.name }}</h1>
   {% if crate.needs_attention %}<span class="attention">Needs attention</span>{% endif %}

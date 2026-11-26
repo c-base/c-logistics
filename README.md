@@ -260,6 +260,9 @@ c-logistics lässt sich als Web-App installieren (in Chrome auf Android: Menü �
 Adressleiste, und Links auf `crates.c-base.org` – also auch gescannte QR-Codes
 und NFC-Tags – öffnen sich in der App.
 
+- In der Detailansicht blättert Wischen nach links zur nächsten und nach
+  rechts zur vorherigen Crate (Reihenfolge der IDs); dieselben Verweise stehen
+  über dem Titel.
 - Das Manifest kommt von `/manifest.webmanifest`, die Icons liegen unter
   `crates/static/crates/icons/`.
 - Die Icons zeigen vorerst das Stationslogo aus

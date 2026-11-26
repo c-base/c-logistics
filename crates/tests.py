@@ -50,6 +50,17 @@ class CrateTests(TestCase):
         self.assertContains(self.client.get(reverse('crates:list')), f'href="{url}"', count=2)
         self.assertEqual(self.client.get(url).status_code, 200)
 
+    def test_detail_links_to_the_neighbouring_crates(self):
+        last = Crate.objects.create(name='Letzte')
+        first, middle = self.client.get(self.crate.get_absolute_url()), self.client.get(self.other_crate.get_absolute_url())
+        # vor 0001 liegt nur die per Migration angelegte 0000, davor nichts
+        self.assertContains(first, 'rel="prev" href="/0000"')
+        self.assertNotContains(self.client.get('/0000'), 'rel="prev"')
+        self.assertContains(first, f'rel="next" href="{self.other_crate.get_absolute_url()}"')
+        self.assertContains(middle, f'rel="prev" href="{self.crate.get_absolute_url()}"')
+        self.assertContains(middle, f'rel="next" href="{last.get_absolute_url()}"')
+        self.assertNotContains(self.client.get(last.get_absolute_url()), 'rel="next"')
+
     def test_codes_are_sequential_four_digit_hex(self):
         self.assertEqual(self.crate.code, '0001')
         self.assertEqual(self.other_crate.code, '0002')

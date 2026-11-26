@@ -225,3 +225,8 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
   .items td.acts { grid-column: 2; text-align: left; padding-top: 0; }
   .login-wrap { align-items: flex-start; padding-top: 2rem; min-height: 0; }
 }
+
+/* Blättern zur vorherigen/nächsten Crate über der Detailansicht */
+.crate-nav { display: flex; justify-content: space-between; margin-bottom: .5rem; }
+.crate-nav a { color: var(--cl-muted); text-decoration: none; padding: .25rem 0; }
+.crate-nav a:hover, .crate-nav a:focus { color: var(--cl-accent); }
