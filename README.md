@@ -262,7 +262,7 @@ und NFC-Tags – öffnen sich in der App.
 
 - In der Detailansicht blättert Wischen nach links zur nächsten und nach
   rechts zur vorherigen Crate (Reihenfolge der IDs); dieselben Verweise stehen
-  über dem Titel.
+  über dem Titel, und an der Tastatur blättern die Pfeiltasten links/rechts.
 - Das Manifest kommt von `/manifest.webmanifest`, die Icons liegen unter
   `crates/static/crates/icons/`.
 - Die Icons zeigen vorerst das Stationslogo aus

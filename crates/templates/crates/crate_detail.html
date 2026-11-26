@@ -7,7 +7,7 @@
   {% if next_crate %}<a rel="next" href="{{ next_crate.get_absolute_url }}" title="{{ next_crate.name }}"><span class="code">{{ next_crate.code }}</span> ›</a>{% endif %}
 </nav>
 <script>
-  // Wischen blättert: nach links zur nächsten, nach rechts zur vorherigen Crate.
+  // Swiping pages: left to the next crate, right to the previous one; the arrow keys do the same.
   (function () {
     var nav = document.getElementById('crate-nav'), start = null;
     function scrollsSideways(node) {
@@ -19,7 +19,7 @@
     document.addEventListener('touchstart', function (event) {
       start = null;
       if (event.touches.length !== 1) return;
-      // nicht in Eingabefeldern (Cursor setzen, Regler) und nicht in seitlich rollbaren Bereichen
+      // not in input fields (placing the cursor, sliders) and not in areas that scroll sideways
       if (event.target.closest('input, textarea, select, [contenteditable]') || scrollsSideways(event.target)) return;
       start = {x: event.touches[0].clientX, y: event.touches[0].clientY, at: Date.now()};
     }, {passive: true});
@@ -29,12 +29,20 @@
       var touch = event.changedTouches[0], dx = touch.clientX - start.x, dy = touch.clientY - start.y;
       var quick = Date.now() - start.at < 700;
       start = null;
-      // deutlich waagerecht, zügig, und nicht beim Markieren von Text
+      // clearly horizontal, quick, and not while selecting text
       if (!quick || Math.abs(dx) < 70 || Math.abs(dx) < 2.5 * Math.abs(dy)) return;
       if (String(window.getSelection())) return;
       var link = nav.querySelector(dx < 0 ? 'a[rel=next]' : 'a[rel=prev]');
       if (link) location.href = link.href;
     }, {passive: true});
+    // Arrow keys left/right page as well – not in input fields and not with Ctrl/Alt/Shift/Meta.
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (event.defaultPrevented || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+      if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+      var link = nav.querySelector(event.key === 'ArrowRight' ? 'a[rel=next]' : 'a[rel=prev]');
+      if (link) location.href = link.href;
+    });
   })();
 </script>
 {% endif %}
@@ -119,7 +127,7 @@
     <form method="post" action="{% url 'crates:photo-upload' crate.code %}" enctype="multipart/form-data" class="photo-upload">
       {% csrf_token %}
       <div class="actions">
-        {# capture öffnet auf dem Telefon direkt die Rückkamera; am Rechner ist es eine normale Dateiauswahl #}
+        {# capture opens the rear camera directly on the phone; on a computer it is a normal file picker #}
         <label class="btn btn-primary">Foto aufnehmen
           <input type="file" name="images" accept="image/*" capture="environment" class="visually-hidden">
         </label>
@@ -132,7 +140,7 @@
   </div>
 </div>
 <script>
-  // Hochladen, sobald ein Bild aufgenommen oder ausgewählt ist – ohne weiteren Knopf.
+  // Upload as soon as an image is taken or chosen – without another button.
   document.querySelectorAll('.photo-upload input[type=file]').forEach(function (input) {
     input.addEventListener('change', function () {
       if (!input.files.length) return;
@@ -177,7 +185,7 @@
   </div>
 </div>
 <script>
-  // Kopiert die Adresse in die Zwischenablage, z. B. zum Einfügen in eine NFC-Schreib-App.
+  // Copies the address to the clipboard, e.g. for pasting into an NFC writing app.
   (function () {
     var button = document.getElementById('copy-link'), status = document.getElementById('copy-status');
     function done(ok) {
@@ -186,7 +194,7 @@
       if (ok) setTimeout(function () { status.textContent = ''; button.classList.remove('copied'); }, 2500);
     }
     function fallback() {
-      // Ohne HTTPS gibt es keine Zwischenablage-Schnittstelle: Text markieren und den alten Weg versuchen.
+      // Without HTTPS there is no clipboard API: select the text and try the old way.
       var range = document.createRange();
       range.selectNodeContents(document.getElementById('crate-link'));
       var selection = window.getSelection();
