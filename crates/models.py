@@ -13,12 +13,12 @@ MAX_NUMBER = 16 ** CODE_DIGITS - 1
 
 
 def format_code(number):
-    """Laufende Nummer als vierstellige Hex-ID, z. B. 26 -> '001A'."""
+    """Sequential number as a four-digit hex ID, e.g. 26 -> '001A'."""
     return f'{number:0{CODE_DIGITS}X}'
 
 
 def normalize_code(value):
-    """Macht aus Eingaben wie '1a' oder '001a' die gespeicherte ID '001A'."""
+    """Turns input such as '1a' or '001a' into the stored ID '001A'."""
     return value.upper().zfill(CODE_DIGITS)
 
 
@@ -36,11 +36,11 @@ class Location(models.Model):
 
 
 class Tag(models.Model):
-    """Ein Tag mit Bereich, geschrieben bereich:wert – z. B. eva:40c3 oder transport:1.
+    """A tag with a scope, written scope:value – e.g. eva:40c3 or transport:1.
 
-    Der Bereich sagt, worum es geht (Veranstaltung, Transport …), der Wert, welche
-    oder welcher. Tags sind eine feste Auswahl: Manager legen sie unter „Tags
-    verwalten“ an (oder im Admin), an den Crates werden sie nur ausgewählt.
+    The scope says what it is about (event, transport …), the value which one.
+    Tags are a fixed selection: managers create them under "Tags verwalten"
+    (or in the admin); on the crates they are only selected.
     """
 
     PATTERN = re.compile(r'(?P<scope>[\w-]+):(?P<value>[\w.-]+)')
@@ -59,7 +59,7 @@ class Tag(models.Model):
 
     @classmethod
     def parse(cls, text):
-        """Zerlegt 'EVA:40c3' in ('eva', '40c3'). Wirft ValueError, wenn es kein Tag ist."""
+        """Splits 'EVA:40c3' into ('eva', '40c3'). Raises ValueError if it is not a tag."""
         match = cls.PATTERN.fullmatch(text.strip().lower())
         if not match:
             raise ValueError(f'„{text}“ ist kein Tag. Tags sehen so aus: bereich:wert, z. B. eva:40c3.')
@@ -70,7 +70,7 @@ class Tag(models.Model):
 
     @classmethod
     def parse_many(cls, text):
-        """Aus 'eva:40c3, Transport:1' wird [('eva', '40c3'), ('transport', '1')], ohne Dubletten."""
+        """'eva:40c3, Transport:1' becomes [('eva', '40c3'), ('transport', '1')], without duplicates."""
         tags = []
         for word in text.replace(',', ' ').split():
             tag = cls.parse(word)
@@ -80,7 +80,7 @@ class Tag(models.Model):
 
     @classmethod
     def find(cls, text):
-        """Das Tag zu 'eva:40c3' oder None, wenn es das nicht gibt."""
+        """The tag for 'eva:40c3', or None if it does not exist."""
         try:
             scope, value = cls.parse(text)
         except ValueError:
@@ -143,14 +143,14 @@ class Crate(models.Model):
         return format_code(number)
 
     def save(self, *args, **kwargs):
-        # Die Bemerkung gehört zum Haken: ist das Problem erledigt, ist sie hinfällig.
+        # The note belongs to the flag: once the problem is solved, it is obsolete.
         if not self.needs_attention:
             self.attention_note = ''
-            # ein neues Problem an derselben Crate darf sofort wieder gemeldet werden
+            # a new problem on the same crate may be reported again right away
             self.attention_reminded_at = None
         if self.code:
             return super().save(*args, **kwargs)
-        # Zwei gleichzeitig angelegte Crates könnten dieselbe Nummer ziehen; dann neu versuchen.
+        # Two crates created at the same time could draw the same number; retry then.
         for attempt in range(5):
             self.code = self.next_code()
             try:
@@ -181,12 +181,12 @@ class Item(models.Model):
 
 
 def _photo_path(instance, filename):
-    # Der Dateiname ist zufällig; der Name vom Telefon wird nicht übernommen.
+    # The file name is random; the name from the phone is not kept.
     return f'crates/{instance.crate.code}/{filename}'
 
 
 class Photo(models.Model):
-    """Ein Foto vom Inhalt. Die Dateien liegen unter MEDIA_ROOT und werden nur angemeldet ausgeliefert."""
+    """A photo of the contents. The files live under MEDIA_ROOT and are only served to logged-in members."""
 
     crate = models.ForeignKey(Crate, verbose_name='Cargo Crate', on_delete=models.CASCADE, related_name='photos')
     image = models.FileField('Bild', upload_to=_photo_path)
@@ -207,7 +207,7 @@ class Photo(models.Model):
 
     @classmethod
     def create_from_upload(cls, crate, upload, member=None):
-        """Verkleinert den Upload und speichert Bild und Vorschau. Wirft PhotoError bei unbrauchbaren Dateien."""
+        """Scales down the upload and stores image and thumbnail. Raises PhotoError for unusable files."""
         from .photos import process_upload
 
         image, thumbnail = process_upload(upload)
@@ -221,7 +221,7 @@ class Photo(models.Model):
 
 @receiver(post_delete, sender=Photo)
 def _delete_photo_files(sender, instance, **kwargs):
-    # Auch wenn die Crate gelöscht wird, sollen keine Dateien liegen bleiben.
+    # Even when the crate is deleted, no files should be left behind.
     for field in (instance.image, instance.thumbnail):
         if field:
             field.delete(save=False)

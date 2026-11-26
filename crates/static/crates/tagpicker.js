@@ -1,6 +1,6 @@
-// Tag-Auswahl: Aus einer Reihe von Haken (ein <div> je Tag) wird eine Auswahl, die nur
-// die gewählten zeigt. Weitere kommen über ein Feld dazu, das die übrigen zum Anklicken
-// aufklappt und beim Tippen eingrenzt. Ohne Skript stehen einfach alle als Haken da.
+// Tag picker: turns a row of checkboxes (one <div> per tag) into a selection that only
+// shows the chosen ones. More are added through a field that opens the remaining ones
+// for clicking and narrows them down while typing. Without the script all of them are simply shown as checkboxes.
 //
 //   initTagPicker(element, { placeholder: '…', onChange: function () {} })
 function initTagPicker(list, options) {
@@ -78,13 +78,13 @@ function initTagPicker(list, options) {
     input.focus();
     changed();
   }
-  // ein Haken, der herausgenommen wird, wandert zurück in die Auswahl
+  // a checkbox that gets unchecked moves back into the selection
   list.addEventListener('change', changed);
   input.addEventListener('input', open);
   input.addEventListener('click', open);
   input.addEventListener('keydown', function (event) {
     if (event.key === 'Enter') {
-      // Enter wählt das Tag und schickt nicht das ganze Formular ab
+      // Enter picks the tag and does not submit the whole form
       event.preventDefault();
       if (found[active]) pick(found[active]);
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

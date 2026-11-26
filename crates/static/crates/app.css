@@ -1,18 +1,18 @@
-/* c-logistics: Ergänzungen zum c-base-bootstrap-Theme (Bootstrap 5).
-   Farben, Schrift, Knöpfe, Navigation und Tabellen kommen aus dem Theme. */
+/* c-logistics: additions to the c-base-bootstrap theme (Bootstrap 5).
+   Colours, font, buttons, navigation and tables come from the theme. */
 
-/* Die Farben dieser Datei. Eine Farbvariante (theme-amber.css) setzt sie neu;
-   neue Regeln deshalb mit diesen Variablen schreiben, nicht mit festen Werten. */
+/* The colours of this file. A colour variant (theme-amber.css) redefines them;
+   so write new rules with these variables, not with fixed values. */
 :root {
-  --cl-accent: #33b5e5;        /* Schrift in der Akzentfarbe: IDs, Eingaben, Tags */
-  --cl-primary: #2a9fd6;       /* Blau des Themes: Rahmen beim Überfahren, markierte Einträge */
-  --cl-field-border: #3ab6e4;  /* Rahmen der Eingabefelder */
-  --cl-accent-dim: #1f6f8c;    /* zurückgenommen: Platzhalter, Rahmen der Tags */
+  --cl-accent: #33b5e5;        /* text in the accent colour: IDs, inputs, tags */
+  --cl-primary: #2a9fd6;       /* the theme's blue: borders on hover, selected entries */
+  --cl-field-border: #3ab6e4;  /* border of the input fields */
+  --cl-accent-dim: #1f6f8c;    /* toned down: placeholders, borders of the tags */
   --cl-accent-soft: rgba(42, 159, 214, 0.25);
-  --cl-bright: #fff;           /* hervorgehobener Text */
+  --cl-bright: #fff;           /* highlighted text */
   --cl-muted: #777;
-  --cl-line: #282828;          /* dünne Rahmen und Trennlinien */
-  --cl-attention: #f80;        /* „Needs attention“ */
+  --cl-line: #282828;          /* thin borders and dividers */
+  --cl-attention: #f80;        /* "Needs attention" */
 }
 
 body {
@@ -22,8 +22,8 @@ body {
   -webkit-tap-highlight-color: var(--cl-accent-soft);
 }
 
-/* Das abgedunkelte Stationsbild als feste Ebene hinter der Seite.
-   `background-attachment: fixed` ruckelt auf Android bzw. wird ignoriert. */
+/* The darkened station image as a fixed layer behind the page.
+   `background-attachment: fixed` stutters on Android or is ignored. */
 body::before {
   content: "";
   position: fixed;
@@ -43,18 +43,18 @@ body::before {
 .code { white-space: nowrap; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; letter-spacing: 0.05em; color: var(--cl-accent); }
 code { color: var(--cl-accent); }
 
-/* Karten: halbtransparent wie .transparent im Theme, mit dünnem Rahmen */
+/* Cards: semi-transparent like .transparent in the theme, with a thin border */
 .card.transparent { border: 1px solid var(--cl-line); color: inherit; overflow-wrap: anywhere; }
 a.card.transparent:hover { border-color: var(--cl-primary); text-decoration: none; }
 .card dt { color: var(--cl-muted); font-weight: 400; }
 .card dd { color: var(--cl-bright); }
 .card dd.code { color: var(--cl-accent); }
 
-/* Überschriften etwas kleiner als im Theme: die Seiten sind Arbeitsmasken, keine Titelseiten */
+/* Headings a little smaller than in the theme: the pages are work screens, not title pages */
 h1, .h1 { font-size: 2rem; }
 h2, .h2 { font-size: 1.5rem; margin-top: 1.75rem; }
 
-/* Eingabefelder im Stil von .terminal: schwarz, Monospace, blauer 2-px-Rahmen */
+/* Input fields in the style of .terminal: black, monospace, blue 2 px border */
 .form-control,
 .form-select {
   font-family: "Andale Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
@@ -85,21 +85,21 @@ h2, .h2 { font-size: 1.5rem; margin-top: 1.75rem; }
 #id_responsible label { font-weight: 400; }
 #id_responsible label { display: flex; align-items: center; gap: 0.6rem; padding: 2px 0; }
 input[type=checkbox] { accent-color: var(--cl-primary); }
-/* Tags: bereich:wert, der Bereich etwas zurückgenommen */
+/* Tags: scope:value, the scope a little toned down */
 .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem; }
 .tag { display: inline-block; padding: 0 0.45rem; border: 1px solid var(--cl-accent-dim); border-radius: 0.25rem; background: none; color: var(--cl-accent); font-size: 0.85rem; line-height: 1.5; white-space: nowrap; }
 .tag .scope { color: var(--cl-muted); }
 a.tag:hover { border-color: var(--cl-accent); text-decoration: none; }
-/* Tags im Formular der Crate: Haken in der Form der Tags */
+/* Tags in the crate form: checkboxes in the shape of the tags */
 #id_tags, .tag-picker { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 #id_tags[hidden] + .member-add { margin-top: 0; }
-/* Tag-Filter der Liste: gewählte Tags und das Feld zum Hinzufügen in einer Zeile */
+/* Tag filter of the list: chosen tags and the field for adding in one row */
 .tag-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .tag-filter .member-add { flex: 0 1 16rem; margin-top: 0; }
 .tag-filter .member-add input { padding-top: 4px; padding-bottom: 4px; }
 #id_tags label, .tag-picker label { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; padding: 0.1rem 0.55rem; border: 1px solid var(--cl-accent-dim); border-radius: 0.25rem; color: var(--cl-accent); font-weight: 400; cursor: pointer; }
 #id_tags label:has(input:checked), .tag-picker label:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-accent-soft); color: var(--cl-bright); }
-/* Tags verwalten */
+/* Managing tags */
 .tag-edit { display: flex; gap: 0.5rem; flex: 1 1 16rem; min-width: 0; max-width: 30rem; }
 .tag-edit input { flex: 1 1 auto; min-width: 0; }
 .tag-edit .btn { flex: none; }
@@ -108,27 +108,27 @@ a.tag:hover { border-color: var(--cl-accent); text-decoration: none; }
 .tag-row .btn-link { padding: 0; }
 .attention-note { color: var(--cl-attention); overflow-wrap: anywhere; }
 p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid var(--cl-attention); border-radius: 0.25rem; }
-/* Suchfeld mit Vorschlägen, um weitere Verantwortliche hinzuzufügen */
+/* Search field with suggestions for adding more responsible members */
 .member-add { position: relative; max-width: 28rem; margin-top: 0.5rem; }
 .member-results { position: absolute; z-index: 10; left: 0; right: 0; max-height: 16rem; margin: 2px 0 0; padding: 0; overflow-y: auto; list-style: none; background: #000; border: 1px solid var(--cl-primary); }
 .member-results li { padding: 0.45rem 0.75rem; color: var(--cl-bright); cursor: pointer; }
-/* schwarz auf Blau braucht Gewicht: Die dünne Schrift ist auf dem Telefon sonst kaum zu lesen */
+/* black on blue needs weight: otherwise the thin font is barely readable on the phone */
 .member-results li.active,
 .member-results li:hover { background: var(--cl-primary); color: #000; font-weight: 700; }
 .member-results li.active .muted,
 .member-results li:hover .muted { color: #000; }
 .member-results li.reserve { border-top: 1px solid var(--cl-line); font-style: italic; }
 .member-results li.none { color: var(--cl-muted); background: none; font-weight: 400; cursor: default; }
-/* Haken mit Beschriftung in einer Zeile: mittig ausgerichtet, mit Abstand */
+/* Checkbox with label in one row: vertically centred, with a gap */
 .check-inline { display: inline-flex; align-items: center; gap: 0.55rem; margin: 0; font-weight: 400; line-height: 1; cursor: pointer; }
 .check-inline input { width: 18px; height: 18px; margin: 0; flex: none; }
 .field-error { color: #ff5a4d; }
-/* Markierung „Needs attention“ in Liste und Detailansicht */
+/* "Needs attention" marker in list and detail view */
 .attention { flex: none; align-self: center; padding: 0.1rem 0.5rem; border: 1px solid var(--cl-attention); border-radius: 0.25rem; color: var(--cl-attention); font-size: 0.8rem; font-weight: 700; line-height: 1.4; text-transform: uppercase; white-space: nowrap; }
 
 .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
-/* Inhaltstabelle */
+/* Contents table */
 .items th { color: var(--cl-accent); font-weight: 500; }
 .items td.num, .items th.num { text-align: right; white-space: nowrap; }
 .items tbody tr:last-child td { border-bottom: 0; }
@@ -136,7 +136,7 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 .items .btn-link { padding: 0; vertical-align: baseline; font-size: inherit; text-decoration: none; }
 .items .btn-link:hover { text-decoration: underline; }
 
-/* Liste: Auswahl für den Kartendruck */
+/* List: selection for printing cards */
 .crate-row { display: flex; align-items: stretch; gap: 0.5rem; }
 .crate-row .card { flex: 1; min-width: 0; }
 .crate-row .pick { display: flex; align-items: center; justify-content: center; padding: 0 0.35rem; cursor: pointer; }
@@ -144,7 +144,7 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 .pick-all-row { align-items: center; cursor: pointer; font-weight: 400; }
 .print-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;
              padding: 0.6rem 0.75rem; margin-top: 0.75rem; background: rgba(6, 6, 6, 0.92); border: 1px solid var(--cl-line); }
-/* Auswahl, Anzahl und Knopf bleiben in einer Zeile; die Auswahl gibt nach */
+/* Selection, count and button stay in one row; the selection gives way */
 .print-bar .print-what { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 18rem; min-width: 0; max-width: 34rem; }
 .print-bar .print-what select { flex: 1 1 auto; min-width: 0; padding-top: 4px; padding-bottom: 4px; text-overflow: ellipsis; }
 .print-bar .copies { display: flex; align-items: center; gap: 0.3rem; margin: 0; white-space: nowrap; flex: none; }
@@ -152,11 +152,11 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 .print-bar .btn { flex: none; }
 .print-bar .tag-what { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex: 1 1 100%; min-width: 0; }
 .print-bar .tag-what select { flex: 0 1 18rem; min-width: 0; padding-top: 4px; padding-bottom: 4px; }
-/* Das Suchfeld bleibt lesbar breit; reicht der Platz nicht, rutschen die Filter in die nächste Zeile. */
+/* The search field stays readably wide; if there is not enough room, the filters wrap to the next row. */
 .search-col { min-width: min(100%, 18rem); }
 .list-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; }
 
-/* Fotos vom Inhalt: Vorschaubilder im Raster, auf dem Telefon zwei nebeneinander */
+/* Photos of the contents: thumbnails in a grid, two side by side on the phone */
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
 .photos figure { margin: 0; min-width: 0; }
 .photos img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--cl-line); background: #000; }
@@ -171,7 +171,7 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 .login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 70px); }
 .login-box { width: 100%; max-width: 360px; }
 
-/* kleiner Kopier-Knopf neben der Adresse */
+/* small copy button next to the address */
 .copy-link { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: 28px; height: 28px; padding: 0; margin-left: 0.25rem;
              background: none; border: 1px solid var(--cl-line); border-radius: 3px; color: var(--cl-accent); cursor: pointer; }
 .copy-link:hover, .copy-link:focus-visible { border-color: var(--cl-primary); color: var(--cl-bright); outline: none; }
@@ -182,7 +182,7 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 
 .label-preview { width: 14rem; max-width: 100%; height: auto; background: #fff; border-radius: 2px; }
 
-/* Finger statt Maus: größere Trefferflächen */
+/* Finger instead of mouse: larger hit areas */
 @media (pointer: coarse) {
   .btn { min-height: 44px; padding: 10px 14px; }
   .items .btn-link { min-height: 0; padding: 10px 0; }
@@ -202,22 +202,22 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 /* Smartphone */
 @media (max-width: 600px) {
   body { font-size: 16px; }
-  /* unter 16 px zoomt der mobile Browser beim Antippen in das Feld hinein */
+  /* below 16 px the mobile browser zooms into the field when it is tapped */
   .form-control, .form-select { font-size: 16px; }
   .actions > * { flex: 1 1 8rem; }
-  /* Knopf neben der Seitenüberschrift: eigene Zeile in voller Breite */
+  /* Button next to the page heading: its own row at full width */
   .page-action { flex: 1 1 100%; }
-  /* Druckleiste erst zeigen, wenn eine Crate angehakt ist – sie verdeckt sonst
-     ein gutes Stück der Liste. Browser ohne :has() zeigen sie immer. */
+  /* Show the print bar only once a crate is checked – otherwise it covers
+     a good part of the list. Browsers without :has() always show it. */
   .crate-select:not(:has(input[name=c]:checked)) .print-bar { display: none; }
-  /* Druckleiste: Auswahl in eigener Zeile, darunter Anzahl und Knopf */
+  /* Print bar: selection in its own row, count and button below */
   .print-bar .print-what { flex-wrap: wrap; max-width: none; }
   .print-bar .print-what select { flex-basis: 100%; }
   .print-bar .print-what .btn { flex: 1 1 auto; }
   .print-bar .tag-what { flex-wrap: wrap; }
   .print-bar .tag-what select { flex: 1 1 100%; }
   .print-bar .tag-what .btn { flex: 1 1 auto; }
-  /* Aktionen unter die Bezeichnung statt in eine dritte Spalte */
+  /* Actions below the name instead of in a third column */
   .items thead { display: none; }
   .items tr { display: grid; grid-template-columns: 3.5rem 1fr; border-bottom: 1px solid var(--cl-line); }
   .items tr:last-child { border-bottom: 0; }
@@ -226,7 +226,7 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
   .login-wrap { align-items: flex-start; padding-top: 2rem; min-height: 0; }
 }
 
-/* Blättern zur vorherigen/nächsten Crate über der Detailansicht */
+/* Paging to the previous/next crate above the detail view */
 .crate-nav { display: flex; justify-content: space-between; margin-bottom: .5rem; }
 .crate-nav a { color: var(--cl-muted); text-decoration: none; padding: .25rem 0; }
 .crate-nav a:hover, .crate-nav a:focus { color: var(--cl-accent); }

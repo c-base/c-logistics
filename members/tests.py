@@ -41,7 +41,7 @@ class SyncMemberTests(TestCase):
         self.assertEqual(member.pk, local.pk)
         self.assertEqual(member.oidc_sub, 'abc-123')
         self.assertEqual(member.email, 'alice@example.org')
-        # Rechte und lokales Passwort bleiben
+        # permissions and local password stay
         self.assertTrue(member.is_superuser)
         self.assertTrue(member.check_password('pw'))
         self.assertEqual(Member.objects.filter(username__startswith='alice').count(), 1)
@@ -53,7 +53,7 @@ class SyncMemberTests(TestCase):
         self.assertTrue(reserved.is_pending)
         crate = Crate.objects.create(name='Wartet auf Alice')
         crate.responsible.add(reserved)
-        # der Provider schreibt den Namen klein: Es ist trotzdem dasselbe Konto
+        # the provider writes the name in lower case: it is still the same account
         member = sync_member(CLAIMS)
         self.assertEqual(member.pk, reserved.pk)
         self.assertFalse(member.is_pending)
@@ -87,7 +87,7 @@ class SyncMemberTests(TestCase):
         local = Member.objects.create_superuser('alice', password='pw')
         duplicate = Member.objects.create(username='alice-2', oidc_sub='abc-123', email='alice@example.org', first_name='Alice')
         duplicate.groups.add(Group.objects.get(name=Member.MANAGER_GROUP))
-        # ein fremdes Konto, das zufällig so aussieht, aber zu einem verknüpften „bob“ gehört
+        # an unrelated account that happens to look like it but belongs to a linked "bob"
         Member.objects.create(username='bob', oidc_sub='bob-1')
         other = Member.objects.create(username='bob-2', oidc_sub='bob-2')
         shared, own = Crate.objects.create(name='Beide'), Crate.objects.create(name='Nur Doppel')
@@ -112,7 +112,7 @@ class SyncMemberTests(TestCase):
         self.assertEqual(set(own.responsible.all()), {local, other})
         photo.refresh_from_db()
         self.assertEqual(photo.uploaded_by, local)
-        # der nächste SSO-Login landet im zusammengeführten Konto
+        # the next SSO login ends up in the merged account
         self.assertEqual(sync_member(CLAIMS).pk, local.pk)
         self.assertTrue(Member.objects.filter(username='bob-2').exists())
 
@@ -122,7 +122,7 @@ class SyncMemberTests(TestCase):
         self.assertEqual(member.username, 'x')
 
 
-# Unabhängig von einer lokalen .env: ohne Provider und ohne feste Adresse starten.
+# Independent of a local .env: start without a provider and without a fixed address.
 @override_settings(OIDC_ISSUER_URL='', OIDC_CLIENT_ID='', OIDC_PROVIDER_NAME='c-base-account', PUBLIC_BASE_URL='')
 class LoginFlowTests(TestCase):
     def test_password_form_without_oidc(self):

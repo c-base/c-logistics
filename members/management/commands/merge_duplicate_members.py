@@ -1,12 +1,12 @@
-"""Führt Doppelkonten zusammen, die beim ersten SSO-Login neben einem lokalen Konto entstanden sind.
+"""Merges duplicate accounts that were created next to a local account on the first SSO login.
 
-Früher bekam, wer sich über den c-base-Account anmeldete und schon ein lokales
-Konto gleichen Namens hatte, ein zweites Konto „<name>-2“. Inzwischen übernimmt
-der Login das lokale Konto (siehe members/oidc.py); dieses Kommando räumt die
-alten Paare auf.
+In the past, anyone logging in via the c-base account who already had a local
+account of the same name got a second account "<name>-2". By now the login
+takes over the local account (see members/oidc.py); this command cleans up
+the old pairs.
 
-    python manage.py merge_duplicate_members           # nur anzeigen
-    python manage.py merge_duplicate_members --apply   # zusammenführen
+    python manage.py merge_duplicate_members           # only show
+    python manage.py merge_duplicate_members --apply   # merge
     python manage.py merge_duplicate_members --apply alice-2
 """
 
@@ -21,13 +21,13 @@ SUFFIX = re.compile(r'^(?P<base>.+)-\d+$')
 
 
 def find_pairs():
-    """Paare (lokales Konto, SSO-Doppelkonto), z. B. (alice, alice-2)."""
+    """Pairs (local account, SSO duplicate), e.g. (alice, alice-2)."""
     pairs = []
     for duplicate in Member.objects.filter(oidc_sub__isnull=False).order_by('username'):
         match = SUFFIX.match(duplicate.username)
         if not match or match['base'] == Member.UNKNOWN_USERNAME:
             continue
-        # Nur Konten ohne SSO-Verknüpfung: Ein verknüpftes „alice“ ist ein anderer Mensch.
+        # Only accounts without an SSO link: a linked "alice" is a different person.
         original = Member.objects.filter(username=match['base'], oidc_sub__isnull=True).first()
         if original is not None:
             pairs.append((original, duplicate))
@@ -36,8 +36,8 @@ def find_pairs():
 
 @transaction.atomic
 def merge(original, duplicate):
-    """Hängt alles vom Doppelkonto an das lokale Konto um und löscht das Doppelkonto."""
-    # include_hidden: auch Beziehungen ohne Rückwärtsnamen, z. B. „hochgeladen von“ an Fotos
+    """Moves everything from the duplicate to the local account and deletes the duplicate."""
+    # include_hidden: also relations without a reverse name, e.g. "uploaded by" on photos
     relations = [
         field for field in Member._meta.get_fields(include_hidden=True)
         if field.auto_created and not field.concrete and field.related_model._meta.auto_created is False
@@ -45,7 +45,7 @@ def merge(original, duplicate):
     for relation in relations:
         field = relation.field
         if relation.many_to_many:
-            # z. B. die Verantwortlichen einer Crate
+            # e.g. the responsible members of a crate
             through = field.remote_field.through
             member_side, other_side = field.m2m_reverse_field_name(), f'{field.m2m_field_name()}_id'
             for row in through._base_manager.filter(**{member_side: duplicate}):
@@ -55,20 +55,20 @@ def merge(original, duplicate):
                     setattr(row, member_side, original)
                     row.save()
         else:
-            # z. B. „hochgeladen von“ an Fotos, Einträge im Admin-Protokoll
+            # e.g. "uploaded by" on photos, entries in the admin log
             relation.related_model._base_manager.filter(**{field.name: duplicate}).update(**{field.name: original})
     original.groups.add(*duplicate.groups.all())
     original.user_permissions.add(*duplicate.user_permissions.all())
 
     sub = duplicate.oidc_sub
     for name in ('first_name', 'last_name', 'email'):
-        # die Angaben aus dem c-base-Account sind die aktuelleren
+        # the details from the c-base account are the more recent ones
         setattr(original, name, getattr(duplicate, name) or getattr(original, name))
     original.is_staff = original.is_staff or duplicate.is_staff
     original.is_superuser = original.is_superuser or duplicate.is_superuser
     logins = [login for login in (original.last_login, duplicate.last_login) if login]
     original.last_login = max(logins, default=None)
-    # erst löschen: oidc_sub ist eindeutig
+    # delete first: oidc_sub is unique
     duplicate.delete()
     original.oidc_sub = sub
     original.save()

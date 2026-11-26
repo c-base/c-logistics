@@ -6,7 +6,7 @@
   <title>{% if crate_count == 1 %}Karte {{ cards.0.crate.code }} · {{ cards.0.crate.name }}{% else %}{{ cards|length }} Karten{% endif %}</title>
   <link rel="icon" href="{% static 'crates/logo.png' %}">
   <link href="{% static 'crates/card.css' %}" rel="stylesheet">
-  {# A5: zwei Karten auf A4 hoch. A6: vier Karten auf A4 quer. #}
+  {# A5: two cards on A4 portrait. A6: four cards on A4 landscape. #}
   <style>@page { size: A4 {% if format == 'a6' %}landscape{% else %}portrait{% endif %}; margin: 0; }</style>
 </head>
 <body class="{{ format }}">
@@ -53,7 +53,7 @@
 </div>
 {% endfor %}
 <script>
-  // Passt der Text nicht auf die Karte, wird die Schrift schrittweise kleiner.
+  // If the text does not fit on the card, the font shrinks step by step.
   window.addEventListener('load', function () {
     document.querySelectorAll('.card').forEach(fitCard);
   });
@@ -73,8 +73,8 @@
     layoutPhotos(card.querySelector('.photos'));
   }
 
-  // Ordnet die Fotos unbeschnitten an: probiert alle Aufteilungen in Zeilen und
-  // in Spalten durch und nimmt die, bei der die Bilder zusammen am größten und ähnlich groß werden.
+  // Arranges the photos uncropped: tries all splits into rows and into
+  // columns and takes the one where the images together come out largest and similar in size.
   function layoutPhotos(box) {
     if (!box) return;
     var images = Array.prototype.filter.call(box.querySelectorAll('img'), function (img) {
@@ -84,7 +84,7 @@
     var W = box.clientWidth, H = box.clientHeight;
     var gap = parseFloat(getComputedStyle(box).rowGap) || 0;
 
-    function splits(n) {  // alle Zerlegungen von n Bildern in aufeinanderfolgende Gruppen
+    function splits(n) {  // all splits of n images into consecutive groups
       if (n === 0) return [[]];
       var result = [];
       for (var first = 1; first <= n; first++) {
@@ -92,7 +92,7 @@
       }
       return result;
     }
-    // Rechnet in Zeilen der Breite `main`; für Spalten werden die Achsen vertauscht.
+    // Calculates in rows of width `main`; for columns the axes are swapped.
     function plan(groups, main, cross, ratios) {
       var index = 0, sizes = [], used = 0;
       groups.forEach(function (count) {
@@ -109,7 +109,7 @@
       index = 0;
       sizes.forEach(function (group) {
         group.height *= scale;
-        // Wurzel der Fläche: bevorzugt ausgewogene Größen statt eines Riesen neben Winzlingen
+        // square root of the area: prefers balanced sizes over one giant next to tiny ones
         for (var i = 0; i < group.count; i++) area += group.height * Math.sqrt(ratios[index + i]);
         index += group.count;
       });

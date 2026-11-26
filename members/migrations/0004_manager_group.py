@@ -4,7 +4,7 @@ MANAGER_GROUP = 'Manager'
 
 
 def create_group(apps, schema_editor):
-    """Die Rolle „Manager“ ist eine Gruppe; wer dazugehört, wird im Admin eingetragen."""
+    """The "Manager" role is a group; who belongs to it is set in the admin."""
     apps.get_model('auth', 'Group').objects.get_or_create(name=MANAGER_GROUP)
 
 

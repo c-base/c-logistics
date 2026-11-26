@@ -2,7 +2,7 @@ from django.db import migrations
 
 
 def assign_unknown(apps, schema_editor):
-    """Crates ohne Verantwortliche (z. B. 0000) bekommen den Platzhalter „unbecannt“."""
+    """Crates without responsible members (e.g. 0000) get the placeholder "unbecannt"."""
     Crate = apps.get_model('crates', 'Crate')
     Member = apps.get_model('members', 'Member')
     unknown = Member.objects.get(username='unbecannt')

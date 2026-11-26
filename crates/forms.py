@@ -8,7 +8,7 @@ from .models import Crate, Item, Tag
 
 
 class BootstrapFormMixin:
-    """Gibt Formularen Bootstrap-5-Markup: Klassen an den Feldern, eigenes Feld-Template."""
+    """Gives forms Bootstrap 5 markup: classes on the fields, a custom field template."""
 
     template_name = 'forms/bootstrap.html'
 
@@ -23,10 +23,10 @@ class BootstrapFormMixin:
 
 
 class ResponsibleWidget(forms.CheckboxSelectMultiple):
-    """Wenige Member als Haken, alle übrigen über ein Suchfeld darunter."""
+    """A few members as checkboxes, all others via a search field below."""
 
     template_name = 'crates/widgets/responsible.html'
-    # Manager dürfen Member vormerken, die sich noch nie angemeldet haben.
+    # Managers may reserve members who have never logged in.
     can_add = False
 
     def get_context(self, name, value, attrs):
@@ -50,7 +50,7 @@ class CrateForm(BootstrapFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.unknown = Member.unknown()
         field = self.fields['responsible']
-        # „unbecannt“ steht oben und ist gewählt, solange niemand sonst eingetragen ist.
+        # "unbecannt" comes first and is selected as long as nobody else is entered.
         own = user.pk if user is not None else None
         members = Member.objects.order_by(
             Case(When(pk=self.unknown.pk, then=0), When(pk=own, then=1), default=2), 'username',
@@ -58,10 +58,10 @@ class CrateForm(BootstrapFormMixin, forms.ModelForm):
         field.queryset = members
         field.required = False
         field.help_text = 'Ohne Auswahl gilt „unbecannt“.'
-        # für das Skript im Formular, das den Haken bei „unbecannt“ mitführt
+        # for the script in the form that keeps the "unbecannt" checkbox in sync
         field.widget.attrs['data-unknown'] = self.unknown.pk
-        # Gültig sind alle Member, als Haken stehen aber nur „unbecannt“, man selbst
-        # und die schon gewählten da. Alle anderen kommen über die Suche dazu.
+        # All members are valid, but only "unbecannt", oneself and the ones already
+        # chosen are shown as checkboxes. All others are added via the search.
         shown = {self.unknown.pk, own, *self._selected_members()}
         field.widget.choices = [(member.pk, member.label) for member in members.filter(pk__in=shown - {None})]
         field.widget.can_add = bool(user is not None and user.is_manager)
@@ -73,7 +73,7 @@ class CrateForm(BootstrapFormMixin, forms.ModelForm):
         )
 
     def _selected_members(self):
-        """Die IDs der gewählten Member: aus der Eingabe, sonst von der Crate, sonst vorbelegt."""
+        """The IDs of the chosen members: from the input, else from the crate, else the initial value."""
         if self.is_bound:
             name = self.add_prefix('responsible')
             values = self.fields['responsible'].widget.value_from_datadict(self.data, self.files, name) or []
@@ -83,7 +83,7 @@ class CrateForm(BootstrapFormMixin, forms.ModelForm):
         return {getattr(member, 'pk', member) for member in self.initial.get('responsible', [])}
 
     def clean_responsible(self):
-        """„unbecannt“ gilt genau dann, wenn kein Member verantwortlich ist."""
+        """"unbecannt" applies exactly when no member is responsible."""
         known = [member for member in self.cleaned_data['responsible'] if member.pk != self.unknown.pk]
         return known or [self.unknown]
 

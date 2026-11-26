@@ -1,19 +1,19 @@
-"""Fotos vom Inhalt einer Crate: verkleinern, drehen, Metadaten entfernen."""
+"""Photos of a crate's contents: scale down, rotate, strip metadata."""
 import io
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-# Längste Kante des gespeicherten Bildes. Reicht, um Beschriftungen zu lesen,
-# und macht aus 12-Megapixel-Fotos Dateien von wenigen hundert Kilobyte.
+# Longest edge of the stored image. Enough to read labelling, and it turns
+# 12-megapixel photos into files of a few hundred kilobytes.
 MAX_EDGE = 1600
 THUMB_EDGE = 400
 JPEG_QUALITY = 82
-# Größte angenommene Datei. Handykameras liefern 3–12 MB.
+# Largest accepted file. Phone cameras deliver 3–12 MB.
 MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 
 
 class PhotoError(ValueError):
-    """Die hochgeladene Datei lässt sich nicht als Foto verwenden."""
+    """The uploaded file cannot be used as a photo."""
 
 
 def _jpeg(image, edge):
@@ -25,10 +25,10 @@ def _jpeg(image, edge):
 
 
 def process_upload(upload):
-    """Macht aus einem Upload zwei JPEGs (Bild, Vorschau) und gibt sie als Bytes zurück.
+    """Turns an upload into two JPEGs (image, thumbnail) and returns them as bytes.
 
-    Das Bild wird nach der EXIF-Angabe aufrecht gedreht und neu kodiert. Dabei
-    fallen alle Metadaten weg – auch der Aufnahmeort, den Handys mitschreiben.
+    The image is rotated upright according to its EXIF data and re-encoded. This
+    drops all metadata – including the location that phones record.
     """
     if upload.size > MAX_UPLOAD_BYTES:
         raise PhotoError(f'„{upload.name}“ ist größer als {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.')
@@ -36,7 +36,7 @@ def process_upload(upload):
         image = Image.open(upload)
         image = ImageOps.exif_transpose(image)
         if image.mode in ('RGBA', 'LA', 'P'):
-            # Transparenz auf Weiß legen; JPEG kennt keine.
+            # Put transparency on white; JPEG has none.
             rgba = image.convert('RGBA')
             image = Image.new('RGB', rgba.size, 'white')
             image.paste(rgba, mask=rgba.getchannel('A'))

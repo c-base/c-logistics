@@ -18,7 +18,7 @@ from .labels import FONTS, labels_ql_raster, nfc_logo, public_url, render_label
 from .models import Crate, Item, Photo, Tag, format_code
 
 
-# Unabhängig von einer lokalen .env.
+# Independent of a local .env.
 @override_settings(PUBLIC_BASE_URL='', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696, PRINT_COPIES=1)
 class CrateTests(TestCase):
     @classmethod
@@ -39,12 +39,12 @@ class CrateTests(TestCase):
 
     def test_only_managers_create_crates(self):
         url = reverse('crates:create')
-        # kein Verweis, kein Formular, kein Anlegen
+        # no link, no form, no creating
         self.assertNotContains(self.client.get(reverse('crates:list')), f'href="{url}"')
         self.assertEqual(self.client.get(url).status_code, 403)
         self.assertEqual(self.client.post(url, {'name': 'Heimlich', 'size': '400x300'}).status_code, 403)
         self.assertFalse(Crate.objects.filter(name='Heimlich').exists())
-        # bearbeiten darf weiter jeder Member
+        # every member may still edit
         self.assertEqual(self.client.get(reverse('crates:update', args=[self.crate.code])).status_code, 200)
         self.make_manager()
         self.assertContains(self.client.get(reverse('crates:list')), f'href="{url}"', count=2)
@@ -53,7 +53,7 @@ class CrateTests(TestCase):
     def test_detail_links_to_the_neighbouring_crates(self):
         last = Crate.objects.create(name='Letzte')
         first, middle = self.client.get(self.crate.get_absolute_url()), self.client.get(self.other_crate.get_absolute_url())
-        # vor 0001 liegt nur die per Migration angelegte 0000, davor nichts
+        # before 0001 there is only 0000, created by a migration, and nothing before that
         self.assertContains(first, 'rel="prev" href="/0000"')
         self.assertNotContains(self.client.get('/0000'), 'rel="prev"')
         self.assertContains(first, f'rel="next" href="{self.other_crate.get_absolute_url()}"')
@@ -150,7 +150,7 @@ class CrateTests(TestCase):
         self.client.post(reverse('crates:create'), data)
         crate = Crate.objects.get(name='Gefunden')
         self.assertEqual(list(crate.responsible.all()), [self.member])
-        # … und kommt zurück, wenn der letzte Member herausgenommen wird
+        # … and comes back when the last member is removed
         self.client.post(reverse('crates:update', args=[crate.code]), {'name': 'Gefunden', 'size': '400x300'})
         self.assertEqual(list(crate.responsible.all()), [unknown])
 
@@ -175,11 +175,11 @@ class CrateTests(TestCase):
         self.assertEqual(self.shown_members(response), ['unbecannt', 'alice'])
         self.assertNotContains(response, f'value="{self.other.pk}"')
         self.assertContains(response, f'data-search-url="{reverse("crates:member-search")}"')
-        # an einer fremden Crate stehen deren Verantwortliche zusätzlich da
+        # on someone else's crate its responsible members are shown as well
         response = self.client.get(reverse('crates:update', args=[self.other_crate.code]))
         self.assertEqual(self.shown_members(response), ['unbecannt', 'alice', 'bob'])
         self.assertContains(response, f'value="{self.other.pk}"')
-        # nach einem Fehler im Formular bleiben die über die Suche gewählten stehen
+        # after a form error the ones chosen via the search stay
         response = self.client.post(reverse('crates:create'), {'name': '', 'responsible': [self.other.pk, 'x']})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.shown_members(response), ['unbecannt', 'alice', 'bob'])
@@ -197,7 +197,7 @@ class CrateTests(TestCase):
         self.assertEqual(self.client.get(url, {'q': 'car'}).json()['results'], [
             {'id': carol.pk, 'label': 'Carol Danvers', 'username': 'carol'},
         ])
-        # der Platzhalter ist immer als Haken da und kein Suchtreffer
+        # the placeholder is always there as a checkbox and never a search hit
         self.assertEqual(found('unbe'), [])
         self.assertEqual(found(''), [])
         self.assertEqual(found('zzz'), [])
@@ -206,7 +206,7 @@ class CrateTests(TestCase):
 
     def test_managers_reserve_members_who_never_logged_in(self):
         url, users = reverse('crates:member-add'), get_user_model().objects
-        # nur Manager bekommen das Angebot und dürfen vormerken
+        # only managers get the offer and may reserve
         self.assertNotContains(self.client.get(reverse('crates:update', args=[self.crate.code])), 'data-add-url')
         self.assertEqual(self.client.post(url, {'username': 'dave'}).status_code, 403)
         self.assertFalse(users.filter(username='dave').exists())
@@ -219,14 +219,14 @@ class CrateTests(TestCase):
         self.assertTrue(dave.is_pending)
         self.assertFalse(dave.has_usable_password())
         self.assertEqual(dave.email_address, 'dave@c-base.org')
-        # ein zweites Mal, auch anders geschrieben, legt kein zweites Konto an
+        # a second time, even spelled differently, creates no second account
         self.assertEqual(self.client.post(url, {'username': 'Dave'}).json()['id'], dave.pk)
         self.assertEqual(self.client.post(url, {'username': 'BOB'}).json(), {'id': self.other.pk, 'label': 'bob', 'username': 'bob'})
         self.assertEqual(users.filter(username__iexact='dave').count(), 1)
         for bad in ['', 'zwei worte', 'a@b', 'unbecannt', 'Unbecannt', 'x' * 65]:
             self.assertEqual(self.client.post(url, {'username': bad}).status_code, 400, bad)
 
-        # der Vorgemerkte ist wählbar, in Suche und Formular gekennzeichnet
+        # the reserved member can be chosen and is marked in search and form
         found = self.client.get(reverse('crates:member-search'), {'q': 'dav'}).json()['results']
         self.assertEqual([member['label'] for member in found], ['dave (noch nie angemeldet)'])
         data = {'name': 'Für Dave', 'size': '400x300', 'responsible': [dave.pk]}
@@ -240,7 +240,7 @@ class CrateTests(TestCase):
         return [Tag.objects.get_or_create(scope=scope, value=value)[0] for scope, value in Tag.parse_many(names)]
 
     def tag(self, crate, names):
-        """Speichert die Crate über das Formular mit genau diesen Tags."""
+        """Saves the crate through the form with exactly these tags."""
         responsible = list(crate.responsible.values_list('pk', flat=True))
         tags = [tag.pk for tag in self.make_tags(names)]
         data = {'name': crate.name, 'size': crate.size, 'responsible': responsible, 'tags': tags}
@@ -259,7 +259,7 @@ class CrateTests(TestCase):
         response = self.client.get(self.crate.get_absolute_url())
         self.assertContains(response, f'href="{reverse("crates:list")}?tag=transport%3A1"')
         self.assertContains(self.client.get(reverse('crates:list')), '<span class="scope">eva:</span>40c3')
-        # im Formular entsteht kein neues Tag
+        # the form creates no new tag
         data = {'name': self.crate.name, 'size': self.crate.size, 'tags': [9999]}
         response = self.client.post(reverse('crates:update', args=[self.crate.code]), data)
         self.assertContains(response, 'field-error')
@@ -283,7 +283,7 @@ class CrateTests(TestCase):
 
     def test_managers_add_rename_and_delete_tags(self):
         url = reverse('crates:tags')
-        # nur Manager: kein Verweis, kein Zugriff
+        # managers only: no link, no access
         self.assertNotContains(self.client.get(reverse('crates:list')), f'href="{url}"')
         self.assertEqual(self.client.get(url).status_code, 403)
         self.assertEqual(self.client.post(url, {'action': 'add', 'names': 'eva:40c3'}).status_code, 403)
@@ -319,7 +319,7 @@ class CrateTests(TestCase):
         self.assertEqual(self.listed(tag='eva:40c3'), [self.crate, self.other_crate])
         self.assertEqual(self.listed(tag='Transport:2'), [self.other_crate])
         self.assertEqual(self.listed(tag=['eva:40c3', 'transport:1']), [self.crate])
-        # auch zwei Tags desselben Bereichs: Die Crate muss dann beide tragen
+        # also two tags of the same scope: the crate then has to carry both
         self.assertEqual(self.listed(tag=['transport:1', 'transport:2']), [])
         self.bulk([self.crate], 'transport:2')
         self.assertEqual(self.listed(tag=['transport:1', 'transport:2']), [self.crate])
@@ -331,7 +331,7 @@ class CrateTests(TestCase):
         self.assertEqual(self.listed(tag='transport:9'), [])
         self.assertEqual(self.listed(tag='unsinn'), [])
         self.assertEqual(self.listed(tag=''), list(Crate.objects.all()))
-        # die Suche findet Tags auch, und beide Filter greifen zusammen
+        # the search finds tags too, and both filters apply together
         self.assertEqual(self.listed(q='40c3'), [self.crate, self.other_crate])
         self.assertEqual(self.listed(q='transport'), [self.crate, self.other_crate])
         self.assertEqual(self.listed(tag='eva:40c3', mine='1'), [self.crate])
@@ -364,9 +364,9 @@ class CrateTests(TestCase):
         self.assertContains(response, 'transport:1, eva:40c3 an 2 Crates gesetzt.')
         self.assertEqual(self.tags_of(self.crate), ['eva:40c3', 'transport:1'])
         self.assertEqual(self.tags_of(self.other_crate), ['eva:40c3', 'transport:1'])
-        # die Verantwortlichen bleiben, anders als beim Speichern über das Formular ohne Auswahl
+        # the responsible members stay, unlike when saving through the form without a selection
         self.assertEqual(list(self.other_crate.responsible.all()), [self.other])
-        # die Leiste bietet die Tags zur Auswahl an
+        # the bar offers the tags for selection
         self.assertContains(self.client.get(reverse('crates:list')), 'id="bulk-tags"')
 
         response = self.bulk([self.other_crate], 'transport:1', action='remove')
@@ -374,7 +374,7 @@ class CrateTests(TestCase):
         self.assertEqual(self.tags_of(self.other_crate), ['eva:40c3'])
         self.assertEqual(self.tags_of(self.crate), ['eva:40c3', 'transport:1'])
         self.bulk([self.crate], 'transport:1', action='remove')
-        # das Tag selbst bleibt in der Auswahl
+        # the tag itself stays in the selection
         self.assertTrue(Tag.objects.filter(scope='transport', value='1').exists())
 
     def test_bulk_tagging_needs_crates_and_a_known_tag(self):
@@ -385,7 +385,7 @@ class CrateTests(TestCase):
         self.assertContains(response, 'Dieses Tag gibt es nicht: transport:9, ohnebereich.')
         self.assertEqual(self.tags_of(self.crate), [])
         self.assertEqual(Tag.objects.count(), 1)
-        # fremde Adressen als Rücksprungziel werden nicht angenommen
+        # foreign addresses are not accepted as a return target
         response = self.bulk([self.crate], 'eva:40c3', next='https://evil.example.org/')
         self.assertEqual(response.redirect_chain, [(reverse('crates:list'), 302)])
         self.assertEqual(self.tags_of(self.crate), ['eva:40c3'])
@@ -405,7 +405,7 @@ class CrateTests(TestCase):
         self.assertContains(response, 'href="/?tag=eva%3A40c3"')
         self.assertContains(response, 'href="?tag=eva%3A40c3&amp;format=csv"')
         self.assertEqual(self.client.get(url, {'tag': ['eva:40c3', 'transport:1']}).context['crates'], [self.crate])
-        # angehakte Crates aus der Druckleiste
+        # checked crates from the print bar
         response = self.client.get(reverse('crates:print'), {'what': 'packlist', 'c': [self.other_crate.code], 'copies': '2'}, follow=True)
         self.assertEqual(response.context['crates'], [self.other_crate])
         self.assertContains(response, '<h1>Packliste</h1>')
@@ -468,7 +468,7 @@ class CrateTests(TestCase):
         self.assertIn(other, response.context['object_list'])
         response = self.client.get(reverse('crates:list'), {'attention': '1'})
         self.assertEqual(list(response.context['object_list']), [self.crate])
-        # ohne Haken im Formular ist die Markierung wieder weg
+        # without the checkbox in the form the flag is gone again
         del data['needs_attention']
         self.client.post(reverse('crates:update', args=[self.crate.code]), data)
         self.crate.refresh_from_db()
@@ -482,10 +482,10 @@ class CrateTests(TestCase):
         self.assertEqual(self.crate.attention_note, 'Deckel geht nicht mehr zu')
         self.assertContains(self.client.get(self.crate.get_absolute_url()), 'Deckel geht nicht mehr zu')
         self.assertContains(self.client.get(reverse('crates:list')), 'Deckel geht nicht mehr zu')
-        # die Suche findet die Crate auch über die Bemerkung
+        # the search also finds the crate by its note
         response = self.client.get(reverse('crates:list'), {'q': 'deckel'})
         self.assertEqual(list(response.context['object_list']), [self.crate])
-        # ohne Haken bleibt keine Bemerkung stehen
+        # without the checkbox no note remains
         self.client.post(url, data)
         self.crate.refresh_from_db()
         self.assertEqual(self.crate.attention_note, '')
@@ -535,8 +535,8 @@ class CrateTests(TestCase):
         self.assertIn('crate-0001.pdf', response['Content-Disposition'])
         self.assertTrue(response.content.startswith(b'%PDF'))
         self.assertEqual(response.content.count(b'/Type /Page\n'), 1)
-        # 62 mm = 175,7 pt breit; 33 mm = 93,6 pt lang: Label (26,5 mm) plus gut
-        # 3 mm Rand oben und unten, die der Drucker nicht bedrucken kann
+        # 62 mm = 175.7 pt wide; 33 mm = 93.6 pt long: label (26.5 mm) plus a good
+        # 3 mm margin at top and bottom that the printer cannot print on
         self.assertRegex(response.content, rb'/MediaBox \[ 0 0 175\.\d+ 93\.\d+ \]')
 
     def test_label_does_not_depend_on_changeable_crate_data(self):
@@ -562,7 +562,7 @@ class CrateTests(TestCase):
                 self.assertEqual(image.width, 696)
                 self.assertGreater(top, 5)
                 self.assertGreater(left, 5)
-                # Schriften runden auf ganze Pixel, deshalb zwei Pixel Spiel.
+                # Fonts round to whole pixels, hence two pixels of slack.
                 self.assertLessEqual(bottom, image.height - top + 2)
                 self.assertLess(right, image.width - 5)
 
@@ -578,14 +578,14 @@ class CrateTests(TestCase):
         with_logo = render_label(url, '10F0')
         without = render_label(url, '10F0', nfc=False)
         self.assertEqual(with_logo.width, without.width)
-        # Unten links, unter dem QR-Code, steht mit Logo etwas und ohne nichts …
+        # Bottom left, below the QR code, there is something with the logo and nothing without …
         def ink(image, box):
             return sum(ImageOps.invert(image.convert('L')).crop(box).tobytes())
         lower_left = lambda image: (0, int(image.height * 0.78), int(image.width * 0.33), image.height)
         self.assertGreater(ink(with_logo, lower_left(with_logo)), 0)
         with override_settings(LABEL_NFC_LOGO=False):
             self.assertEqual(render_label(url, '10F0').tobytes(), without.tobytes())
-        # … und das Logo ist so breit wie der QR-Code.
+        # … and the logo is as wide as the QR code.
         logo = nfc_logo(200)
         self.assertEqual(logo.width, 200)
         self.assertLess(logo.height, 80)
@@ -654,7 +654,7 @@ class PhotoTests(TestCase):
             self.assertEqual(len(image.getexif()), 0)
 
     def test_photo_taken_upright_is_stored_upright(self):
-        # Orientierung 6: das Telefon speichert quer und merkt sich die Drehung nur im EXIF.
+        # Orientation 6: the phone stores landscape and records the rotation only in EXIF.
         self.client.post(self.upload_url, {'images': photo_upload(size=(800, 600), orientation=6)})
         with Image.open(self.crate.photos.get().image.path) as image:
             self.assertEqual(image.size, (600, 800))
@@ -750,7 +750,7 @@ class PhotoTests(TestCase):
         self.assertEqual([len(sheet) for sheet in a6.context['sheets']], [4, 1])
         self.assertContains(a6, 'Kiste 3')
         self.assertContains(a6, 'class="sheet"', count=2)
-        # der Umschalter behält die Auswahl
+        # the switch keeps the selection
         self.assertContains(a6, f'c={codes[0]}&amp;c={codes[1]}')
 
     def test_card_sheet_ignores_unknown_codes_and_needs_a_selection(self):
@@ -804,7 +804,7 @@ class AddressTests(TestCase):
     def test_hex_looking_words_do_not_shadow_fixed_pages(self):
         for name in ('crates:create', 'crates:cards'):
             self.assertNotEqual(self.client.get(reverse(name), {'c': '10F0'}).status_code, 404)
-        # ein Wort aus Hex-Zeichen ist dagegen eine Crate-ID
+        # a word made of hex characters, however, is a crate ID
         self.assertEqual(self.client.get('/cafe').status_code, 404)
         Crate.objects.create(name='Kaffee', code='CAFE')
         self.assertContains(self.client.get('/cafe'), 'Kaffee')
@@ -836,9 +836,9 @@ class LabelSheetTests(TestCase):
         self.assertEqual(len(data), 202 + 3 * page)
         for index in range(3):
             block = data[202 + index * page:202 + (index + 1) * page]
-            # Endlosband 62 mm, Zeilenzahl, erste Seite / Folgeseite
+            # continuous tape 62 mm, number of lines, first page / following page
             self.assertEqual(block[:13], b'\x1b\x69\x7a\xce\x0a\x3e\x00' + height.to_bytes(4, 'little') + bytes([min(index, 1), 0]))
-            # automatisch schneiden, nach jedem Label, auch nach dem letzten
+            # cut automatically, after every label, also after the last one
             self.assertEqual(block[13:25], b'\x1b\x69\x4d\x40' + b'\x1b\x69\x41\x01' + b'\x1b\x69\x4b\x08')
             self.assertEqual(block[30:33], b'\x67\x00\x5a')
             self.assertEqual(block[-1:], b'\x1a')
@@ -896,7 +896,7 @@ class LabelSheetTests(TestCase):
 
 @override_settings(PUBLIC_BASE_URL='https://crates.c-base.org', LABEL_FONT='baijamjuree', LABEL_WIDTH_PX=696, PRINT_COPIES=2)
 class CopiesTests(TestCase):
-    """In der Regel braucht man jedes Label und jede Karte doppelt."""
+    """As a rule every label and every card is needed twice."""
 
     @classmethod
     def setUpTestData(cls):
@@ -950,7 +950,7 @@ class CopiesTests(TestCase):
 
 
 class AppInstallTests(TestCase):
-    """Installation auf dem Telefon als App (PWA)."""
+    """Installing on the phone as an app (PWA)."""
 
     def test_manifest_is_public_and_points_to_existing_icons(self):
         from django.contrib.staticfiles import finders
@@ -975,7 +975,7 @@ class AppInstallTests(TestCase):
 
 
 class ThemeTests(TestCase):
-    """Farbvariante „amber“ zum Umschalten in der Navigation."""
+    """The switchable colour variant "amber" in the navigation."""
 
     def test_every_page_offers_the_switch_with_and_without_login(self):
         login = self.client.get(reverse('login'))
@@ -1075,7 +1075,7 @@ class ReminderTests(TestCase):
         self.assertEqual(response.context['plan'].recent, [self.lid, self.shared])
         self.client.post(self.url)
         self.assertEqual(mail.outbox, [])
-        # nach Ablauf der Frist geht es wieder
+        # once the waiting period is over it works again
         Crate.objects.filter(pk=self.lid.pk).update(attention_reminded_at=timezone.now() - timedelta(days=8))
         self.client.post(self.url)
         self.assertEqual([message.to for message in mail.outbox], [['alice@example.org']])
@@ -1106,7 +1106,7 @@ class ReminderTests(TestCase):
         self.lid.refresh_from_db()
         self.shared.refresh_from_db()
         self.assertIsNone(self.lid.attention_reminded_at)
-        # Bob hat seine Mail zur gemeinsamen Crate bekommen
+        # Bob got his mail about the shared crate
         self.assertIsNotNone(self.shared.attention_reminded_at)
 
     @override_settings(MAIL_ENABLED=False)

@@ -1,10 +1,10 @@
-# Zusatz für Postgres statt SQLite. Start:
+# Add-on for Postgres instead of SQLite. Start:
 #   docker compose -f compose.yaml -f compose.postgres.yaml up -d --build
 #   podman-compose -f compose.yaml -f compose.postgres.yaml up -d --build
 #
-# In der .env muss POSTGRES_PASSWORD stehen (nur Buchstaben, Ziffern, - und _,
-# weil es unverändert in die Datenbank-Adresse eingesetzt wird).
-# Die Fotos bleiben im Volume `data`.
+# The .env has to contain POSTGRES_PASSWORD (letters, digits, - and _ only,
+# because it is inserted into the database address unchanged).
+# The photos stay in the volume `data`.
 services:
   app:
     environment:

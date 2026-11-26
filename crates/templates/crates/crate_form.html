@@ -18,7 +18,7 @@
   initTagPicker(document.getElementById('id_tags'), { placeholder: 'Tag hinzufügen: tippen oder auswählen …' });
 </script>
 <script>
-  // Die Bemerkung zu „Needs attention“ gibt es nur, solange der Haken gesetzt ist.
+  // The note for "Needs attention" only exists while the checkbox is set.
   (function () {
     var flag = document.getElementById('id_needs_attention'), note = document.getElementById('id_attention_note');
     if (!flag || !note) return;
@@ -32,8 +32,8 @@
   })();
 </script>
 <script>
-  // „unbecannt“ ist angehakt, solange kein Member gewählt ist, und geht von selbst
-  // weg, sobald einer gewählt wird. Wer „unbecannt“ anhakt, nimmt die anderen heraus.
+  // "unbecannt" is checked as long as no member is chosen, and goes away by
+  // itself as soon as one is chosen. Checking "unbecannt" unchecks the others.
   (function () {
     var list = document.getElementById('id_responsible');
     if (!list) return;
@@ -50,14 +50,14 @@
     });
     sync();
 
-    // Weitere Member: im Suchfeld tippen, Vorschlag wählen – er kommt als Haken dazu.
+    // More members: type in the search field, pick a suggestion – it is added as a checkbox.
     var add = document.querySelector('.member-add');
     if (!add || !window.fetch) return;
     var input = add.querySelector('input'), results = add.querySelector('.member-results');
     var found = [], active = -1, timer, latest = 0;
     add.hidden = false;
 
-    // Nur für Manager: einen Nick vormerken, der sich noch nie angemeldet hat.
+    // Managers only: reserve a nick that has never logged in.
     function reserve(nick) {
       var question = '„' + nick + '“ hat sich hier noch nie angemeldet. Als Member vormerken?\n\n'
         + 'Bitte den Nick so schreiben wie im c-base-Account – nur dann übernimmt die Person das Konto bei ihrer ersten Anmeldung.';
@@ -139,7 +139,7 @@
       if (!query) return show([]);
       fetch(add.dataset.searchUrl + '?q=' + encodeURIComponent(query), { credentials: 'same-origin' })
         .then(function (response) { return response.json(); })
-        // eine ältere Antwort darf eine neuere nicht überschreiben
+        // an older response must not overwrite a newer one
         .then(function (data) { if (ticket === latest) show(data.results, true); })
         .catch(function () {});
     }
@@ -149,7 +149,7 @@
     });
     input.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
-        // Enter wählt den Vorschlag und schickt nicht das ganze Formular ab
+        // Enter picks the suggestion and does not submit the whole form
         event.preventDefault();
         if (found[active]) pick(found[active]);
       } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

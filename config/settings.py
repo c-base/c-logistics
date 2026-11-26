@@ -21,10 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def load_env_file(path):
-    """Liest KEY=WERT-Zeilen aus einer .env-Datei in die Umgebung.
+    """Reads KEY=VALUE lines from a .env file into the environment.
 
-    Bereits gesetzte Umgebungsvariablen haben Vorrang, damit sich einzelne Werte
-    beim Start überschreiben lassen. Keine Variablenersetzung, keine Mehrzeiler.
+    Environment variables that are already set take precedence, so single values
+    can be overridden at start-up. No variable substitution, no multi-line values.
     """
     if not path.is_file():
         return
@@ -42,7 +42,7 @@ def load_env_file(path):
 load_env_file(BASE_DIR / '.env')
 
 
-# 1 = Entwicklung (Fehlerseiten mit Details), 0 = Betrieb
+# 1 = development (error pages with details), 0 = production
 DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
 _DEV_SECRET_KEY = 'django-insecure-$r4hz4rl3=j$x5$o1+)tucmf0nj_a-2_&isw+d(c&4%&b#pfrf'
@@ -68,7 +68,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # liefert die statischen Dateien aus, damit es keinen zweiten Webserver braucht
+    # serves the static files, so no second web server is needed
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -102,10 +102,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 def database_config():
-    """SQLite (Standard) oder Postgres, je nach DATABASE_URL.
+    """SQLite (default) or Postgres, depending on DATABASE_URL.
 
-    DATABASE_URL leer:  SQLite-Datei unter DJANGO_SQLITE_PATH (Standard: db.sqlite3 im Projektordner)
-    DATABASE_URL=postgres://nutzer:passwort@host:5432/datenbank
+    DATABASE_URL empty:  SQLite file at DJANGO_SQLITE_PATH (default: db.sqlite3 in the project folder)
+    DATABASE_URL=postgres://user:password@host:5432/database
     """
     url = os.environ.get('DATABASE_URL', '').strip()
     if not url:
@@ -113,8 +113,8 @@ def database_config():
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': os.environ.get('DJANGO_SQLITE_PATH') or BASE_DIR / 'db.sqlite3',
             'OPTIONS': {
-                # Mehrere Prozesse (gunicorn) teilen sich die Datei: WAL lässt Leser
-                # neben einem Schreiber zu, IMMEDIATE vermeidet „database is locked“.
+                # Several processes (gunicorn) share the file: WAL allows readers next
+                # to one writer, IMMEDIATE avoids "database is locked".
                 'timeout': 20,
                 'transaction_mode': 'IMMEDIATE',
                 'init_command': 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
@@ -172,7 +172,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-# Ziel von `collectstatic`; im Container liefert whitenoise von hier aus.
+# Target of `collectstatic`; in the container whitenoise serves from here.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
@@ -189,14 +189,14 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'crates:list'
 LOGOUT_REDIRECT_URL = 'login'
 
-# Basis-URL, die in NFC-Tags und QR-Codes geschrieben wird, https://crates.c-base.org
-# Gedruckte Labels sind dauerhaft – diese Adresse darf sich später nicht mehr ändern.
+# Base URL written into NFC tags and QR codes, https://crates.c-base.org
+# Printed labels are permanent – this address must not change later.
 PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', '').rstrip('/')
 
-# Betrieb hinter einem Reverse Proxy, der HTTPS macht: Der Proxy meldet das
-# ursprüngliche Protokoll in X-Forwarded-Proto. Cookies gehen nur über HTTPS,
-# sobald die öffentliche Adresse eine https-Adresse ist; zum Ausprobieren des
-# Containers über http://localhost lässt sich das mit DJANGO_SECURE_COOKIES=0 abschalten.
+# Running behind a reverse proxy that terminates HTTPS: the proxy reports the
+# original protocol in X-Forwarded-Proto. Cookies are HTTPS-only as soon as
+# the public address is an https address; to try out the container via
+# http://localhost this can be switched off with DJANGO_SECURE_COOKIES=0.
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     if PUBLIC_BASE_URL:
@@ -204,25 +204,25 @@ if not DEBUG:
     _secure_cookies = os.environ.get('DJANGO_SECURE_COOKIES') or ('1' if PUBLIC_BASE_URL.startswith('https://') else '0')
     SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = _secure_cookies == '1'
 
-# Druckbreite der Rolle in Pixeln bei 300 dpi = Breite des Labels (Brother QL: 62-mm-Rolle = 696, 29 mm = 306).
+# Print width of the roll in pixels at 300 dpi = width of the label (Brother QL: 62 mm roll = 696, 29 mm = 306).
 LABEL_WIDTH_PX = int(os.environ.get('LABEL_WIDTH_PX', '696'))
 
-# Anmeldung über OAuth2 / OpenID Connect. Ohne OIDC_ISSUER_URL bleibt es beim
-# Passwort-Login (für die lokale Entwicklung).
+# Login via OAuth2 / OpenID Connect. Without OIDC_ISSUER_URL only the
+# password login remains (for local development).
 OIDC_ISSUER_URL = os.environ.get('OIDC_ISSUER_URL', '').rstrip('/')
 OIDC_CLIENT_ID = os.environ.get('OIDC_CLIENT_ID', '')
 OIDC_CLIENT_SECRET = os.environ.get('OIDC_CLIENT_SECRET', '')
 OIDC_SCOPE = os.environ.get('OIDC_SCOPE', 'openid profile email')
 OIDC_PROVIDER_NAME = os.environ.get('OIDC_PROVIDER_NAME', 'c-base-account')
 
-# E-Mail: Manager erinnern die Verantwortlichen von Crates mit „Needs attention“.
-# Ohne EMAIL_HOST wird nichts verschickt; in der Entwicklung landen die Mails
-# stattdessen in der Ausgabe des Servers.
+# E-mail: managers remind the responsible members of crates with "Needs attention".
+# Without EMAIL_HOST nothing is sent; in development the mails end up in the
+# server's output instead.
 EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT') or 587)
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-# Port 587: STARTTLS (EMAIL_USE_TLS). Port 465: TLS von Anfang an (EMAIL_USE_SSL).
+# Port 587: STARTTLS (EMAIL_USE_TLS). Port 465: TLS from the start (EMAIL_USE_SSL).
 EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL') == '1'
 EMAIL_USE_TLS = not EMAIL_USE_SSL and (os.environ.get('EMAIL_USE_TLS') or '1') == '1'
 EMAIL_TIMEOUT = 20
@@ -230,25 +230,25 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'c-base cargo crate
 if not EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 MAIL_ENABLED = bool(EMAIL_HOST) or DEBUG
-# Hat ein Konto keine Adresse aus dem c-base-Account, gilt <Nutzername>@<Domain>.
+# If an account has no address from the c-base account, <username>@<domain> is used.
 MEMBER_EMAIL_DOMAIN = os.environ.get('MEMBER_EMAIL_DOMAIN') or 'c-base.org'
-# Eine Crate wird frühestens nach so vielen Tagen erneut angemahnt.
+# A crate is reminded about again after this many days at the earliest.
 REMINDER_INTERVAL_DAYS = int(os.environ.get('REMINDER_INTERVAL_DAYS') or 7)
 
-# Wie oft jedes Label und jede Karte gedruckt wird, wenn nichts anderes gewählt
-# ist. Üblich sind zwei: eins für jede Stirnseite der Crate.
+# How often each label and each card is printed unless something else is
+# chosen. Two is usual: one for each end of the crate.
 PRINT_COPIES = int(os.environ.get('PRINT_COPIES') or 2)
 
-# Schrift auf dem Label: 'baijamjuree' (Nummer in Orbitron), 'orbitron' oder
-# 'anybody' (siehe crates/labels.py).
+# Font on the label: 'baijamjuree' (number in Orbitron), 'orbitron' or
+# 'anybody' (see crates/labels.py).
 LABEL_FONT = os.environ.get('LABEL_FONT', 'baijamjuree')
 
-# NFC-Logo unter dem QR-Code auf dem Label: 1 = ja, 0 = nein
+# NFC logo below the QR code on the label: 1 = yes, 0 = no
 LABEL_NFC_LOGO = (os.environ.get('LABEL_NFC_LOGO') or '1') == '1'
 
-# Fotos vom Inhalt der Crates. Sie werden nicht direkt vom Webserver, sondern
-# über eine Ansicht mit Anmeldung ausgeliefert (crates.views.PhotoFileView).
+# Photos of the crates' contents. They are not served by the web server
+# directly but through a view that requires login (crates.views.PhotoFileView).
 MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT') or BASE_DIR / 'media')
 
-# Projektweite statische Dateien: das c-base-Theme unter static/c-base-bootstrap/
+# Project-wide static files: the c-base theme in static/c-base-bootstrap/
 STATICFILES_DIRS = [BASE_DIR / 'static']

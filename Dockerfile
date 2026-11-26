@@ -1,12 +1,12 @@
-# c-logistics als Container. Läuft mit Docker und Podman.
+# c-logistics as a container. Runs with Docker and Podman.
 FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-# libfribidi0: Pillow braucht es für die OpenType-Merkmale der Label-Schriften
-# (durchgestrichene Null bei LABEL_FONT=anybody).
+# libfribidi0: Pillow needs it for the OpenType features of the label fonts
+# (slashed zero with LABEL_FONT=anybody).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libfribidi0 \
     && rm -rf /var/lib/apt/lists/*
@@ -17,12 +17,12 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-# Statische Dateien stecken im Image; whitenoise liefert sie aus.
+# Static files are baked into the image; whitenoise serves them.
 RUN DJANGO_DEBUG=0 DJANGO_SECRET_KEY=nur-fuer-den-build python manage.py collectstatic --noinput
 
-# Datenbank (SQLite) und Fotos liegen unter /data – dort gehört ein Volume hin.
-# Der Ordner gehört schon im Image dem Nutzer `app`, damit ein neues Volume
-# dessen Rechte übernimmt (auch bei Podman ohne root).
+# Database (SQLite) and photos live under /data – a volume belongs there.
+# The folder already belongs to the user `app` in the image, so that a new volume
+# takes over its permissions (also with rootless Podman).
 RUN useradd --system --uid 1000 --home-dir /app app \
     && mkdir -p /data/media \
     && chown -R app:app /data

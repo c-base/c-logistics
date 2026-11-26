@@ -1,7 +1,7 @@
-"""Label für eine Cargo Crate: QR-Code, Schriftzug und ID – nichts, was sich ändert.
+"""Label for a cargo crate: QR code, lettering and ID – nothing that changes.
 
-Das Label ist so breit wie das Endlosband (Querformat): Die Bildbreite ist die
-Druckbreite der Rolle, die Bildhöhe die Länge des abgeschnittenen Stücks.
+The label is as wide as the continuous tape (landscape): the image width is the
+print width of the roll, the image height the length of the piece cut off.
 """
 
 import io
@@ -13,20 +13,20 @@ from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 LABEL_DPI = 300
-TAPE_WIDTH_MM = 62  # Brother-DK-Endlosrolle; bedruckbar sind davon 696 Pixel (ca. 59 mm)
-QUIET_ZONE = 4  # Module Abstand zwischen QR-Code und Text, laut QR-Spezifikation
-# Rand im Bild in Modulen. Der Rest der Ruhezone kommt vom Drucker: Das Band ist
-# breiter als der Druckbereich, und vor und nach jedem Etikett gibt es Vorschub.
+TAPE_WIDTH_MM = 62  # Brother DK continuous roll; 696 pixels (approx. 59 mm) of it are printable
+QUIET_ZONE = 4  # modules of space between QR code and text, per the QR specification
+# Margin in the image, in modules. The rest of the quiet zone comes from the
+# printer: the tape is wider than the print area, and there is feed before and after each label.
 EDGE = 2
 FONT_DIR = Path(__file__).resolve().parent / 'fonts'
 TOP_LINE = 'c-base cargo'
 MIDDLE_LINE = 'crate'
 HEX_DIGITS = '0123456789ABCDEF'
 
-# `axes` stellt variable Schriften ein, `features` schaltet OpenType-Varianten zu
-# (bei Anybody die Null mit Querbalken). `code_font` setzt die ID in einer
-# anderen Schrift: Bai Jamjuree unterscheidet 0 und O kaum, Orbitron streicht
-# die Null durch.
+# `axes` sets up variable fonts, `features` switches on OpenType variants
+# (for Anybody the slashed zero). `code_font` sets the ID in a different
+# font: Bai Jamjuree barely distinguishes 0 and O, Orbitron strikes
+# through the zero.
 FONTS = {
     'baijamjuree': {'file': 'BaiJamjuree-Bold.ttf', 'axes': {}, 'features': [], 'code_font': 'orbitron'},
     'orbitron': {'file': 'Orbitron.ttf', 'axes': {'Weight': 900}, 'features': []},
@@ -35,7 +35,7 @@ FONTS = {
 
 
 def public_url(crate, request=None):
-    """Die URL, die im NFC-Tag und im QR-Code steht."""
+    """The URL stored in the NFC tag and the QR code."""
     path = crate.get_absolute_url()
     if settings.PUBLIC_BASE_URL:
         return settings.PUBLIC_BASE_URL + path
@@ -45,7 +45,7 @@ def public_url(crate, request=None):
 class _Typeface:
     def __init__(self, name):
         self.spec = FONTS[name]
-        # OpenType-Features gibt es nur mit der Raqm-Textausgabe.
+        # OpenType features are only available with the Raqm text layout.
         self.features = self.spec['features'] or None
         self.engine = ImageFont.Layout.RAQM if self.features else ImageFont.Layout.BASIC
         code_font = self.spec.get('code_font')
@@ -65,16 +65,16 @@ class _Typeface:
         return font.getlength(text, features=self.features)
 
     def ink(self, font, text):
-        """Höhe über und Tiefe unter der Grundlinie, die der Text tatsächlich einfärbt."""
+        """Height above and depth below the baseline that the text actually inks."""
         _, top, _, bottom = font.getbbox(text, anchor='ls', features=self.features)
         return -top, max(0, bottom)
 
     def text_block(self, block_width, code):
-        """Die drei Zeilen als (Text, Schrift, Grundlinie, Features) und die Gesamthöhe des Blocks.
+        """The three lines as (text, font, baseline, features) and the total height of the block.
 
-        Oben klein „c-base cargo“, darunter „crate“, darunter die ID – jede Zeile
-        füllt die Blockbreite, kürzere Zeilen werden dadurch größer. Die ID richtet
-        sich nach der breitesten Ziffer, damit sie auf allen Labels gleich groß ist.
+        On top, small, "c-base cargo", below it "crate", below that the ID – every line
+        fills the block width, so shorter lines come out larger. The ID is sized for
+        the widest digit so that it is the same size on all labels.
         """
         probe = self.font(1000)
         top_font = self.font(1000 * block_width / self.width(probe, TOP_LINE))
@@ -99,31 +99,31 @@ class _Typeface:
         return lines, code_baseline
 
 
-# --- NFC-Logo ---------------------------------------------------------------
-# Schriftzug „NFC“ in X-Scale, rechts daneben drei Funkwellen – dieselbe
-# Zeichnung wie auf den c-base-Karten (cbag3). Es steht unter dem QR-Code und
-# zeigt, dass im Label ein NFC-Tag steckt.
+# --- NFC logo ---------------------------------------------------------------
+# The lettering "NFC" in X-Scale, with three radio waves to its right – the same
+# drawing as on the c-base cards (cbag3). It sits below the QR code and
+# shows that the label contains an NFC tag.
 NFC_FONT = 'XScale.ttf'
-NFC_WAVE_ANGLE = 58      # halber Öffnungswinkel der Wellen in Grad
-NFC_WAVE_STROKE = 0.11   # Strichstärke, als Anteil der Logohöhe
-NFC_TEXT_GAP = 0.08      # Abstand zwischen Schriftzug und Wellen
-NFC_LOGO_GAP = 2         # Abstand zwischen QR-Code und Logo in Modulen
+NFC_WAVE_ANGLE = 58      # half opening angle of the waves in degrees
+NFC_WAVE_STROKE = 0.11   # stroke width, as a fraction of the logo height
+NFC_TEXT_GAP = 0.08      # gap between lettering and waves
+NFC_LOGO_GAP = 2         # gap between QR code and logo in modules
 
 
 def _nfc_metrics():
-    """(Breite je Höhe des Logos, Schriftgröße je Höhe, Versalhöhe je Schriftgröße)."""
+    """(width per height of the logo, font size per height, cap height per font size)."""
     probe = ImageFont.truetype(str(FONT_DIR / NFC_FONT), 1000)
     left, top, right, bottom = probe.getbbox('NFC', anchor='ls')
     cap = -top / 1000
     text_width = (right - left) / 1000
-    # Versalhöhe = halbe Logohöhe; die äußerste Welle ist so hoch wie das Logo.
+    # Cap height = half the logo height; the outermost wave is as tall as the logo.
     size_per_height = 0.5 / cap
     waves = 1 / (2 * math.sin(math.radians(NFC_WAVE_ANGLE)))
     return size_per_height * text_width + NFC_TEXT_GAP + waves, size_per_height, cap
 
 
 def nfc_logo(width):
-    """Das NFC-Logo als Schwarz-Weiß-Bild in der angegebenen Breite."""
+    """The NFC logo as a black-and-white image of the given width."""
     width_per_height, size_per_height, cap = _nfc_metrics()
     height = width / width_per_height
     image = Image.new('1', (round(width), math.ceil(height)), 1)
@@ -132,7 +132,7 @@ def nfc_logo(width):
     ink_left, _, ink_right, _ = font.getbbox('NFC', anchor='ls')
     middle = height / 2
     draw.text((-ink_left, middle + cap * font.size / 2), 'NFC', font=font, fill=0, anchor='ls')
-    # Mittelpunkt der Wellen kurz hinter dem C
+    # centre of the waves just behind the C
     center = ink_right - ink_left + NFC_TEXT_GAP * height
     stroke = max(1.0, NFC_WAVE_STROKE * height)
     outer = height / (2 * math.sin(math.radians(NFC_WAVE_ANGLE))) - stroke / 2
@@ -140,7 +140,7 @@ def nfc_logo(width):
         box = [center - radius - stroke / 2, middle - radius - stroke / 2,
                center + radius + stroke / 2, middle + radius + stroke / 2]
         draw.arc(box, -NFC_WAVE_ANGLE, NFC_WAVE_ANGLE, fill=0, width=round(stroke))
-        # runde Strichenden
+        # round stroke ends
         for sign in (-1, 1):
             x = center + radius * math.cos(math.radians(NFC_WAVE_ANGLE))
             y = middle + sign * radius * math.sin(math.radians(NFC_WAVE_ANGLE))
@@ -149,12 +149,12 @@ def nfc_logo(width):
 
 
 def render_label(url, code, tape_px=None, font=None, nfc=None):
-    """Zeichnet das Label als Schwarz-Weiß-Bild in voller Bandbreite.
+    """Draws the label as a black-and-white image across the full tape width.
 
-    Links der QR-Code und darunter das NFC-Logo, rechts daneben der Schriftzug
-    und die ID. Der Textblock ist genau so hoch wie die linke Spalte; beide
-    zusammen füllen die Bandbreite. Mit nfc=False (oder LABEL_NFC_LOGO=0)
-    entfällt das Logo, und der QR-Code wird entsprechend größer.
+    On the left the QR code with the NFC logo below it, to the right the lettering
+    and the ID. The text block is exactly as tall as the left column; together
+    they fill the tape width. With nfc=False (or LABEL_NFC_LOGO=0) the logo is
+    left out and the QR code becomes correspondingly larger.
     """
     tape_px = tape_px or settings.LABEL_WIDTH_PX
     typeface = _Typeface(font or settings.LABEL_FONT)
@@ -165,13 +165,13 @@ def render_label(url, code, tape_px=None, font=None, nfc=None):
     modules = qr.modules
     count = len(modules)
 
-    # Linke Spalte in Modulen: QR-Code, darunter Abstand und das Logo in QR-Breite.
+    # Left column in modules: QR code, below it a gap and the logo at QR width.
     column_modules = count
     if nfc:
         column_modules += NFC_LOGO_GAP + count / _nfc_metrics()[0]
-    # Der Textblock ist bei gleicher Höhe ein festes Vielfaches breiter als hoch.
-    # Daraus folgt die größte ganzzahlige Modulgröße, bei der beides
-    # nebeneinander auf das Band passt (ganzzahlig für scharfe Kanten im Thermodruck).
+    # At equal height the text block is a fixed multiple wider than tall.
+    # This gives the largest integer module size at which both fit side by
+    # side on the tape (integer for crisp edges in thermal printing).
     width_per_height = 1000 / typeface.text_block(1000, code)[1]
     module_px = int(tape_px / (count + column_modules * width_per_height + 2 * EDGE + QUIET_ZONE))
     if module_px < 1:
@@ -207,14 +207,14 @@ def label_png(url, code, font=None):
     return buffer.getvalue()
 
 
-# Der Drucker kann die ersten und letzten 3 mm eines Etiketts nicht bedrucken
-# (Vorschub bis zum Messer). Die PDF-Seite bekommt deshalb oben und unten
-# mindestens so viel Rand, sonst schneidet der Treiber dort den Inhalt ab.
+# The printer cannot print on the first and last 3 mm of a label
+# (feed up to the cutter). The PDF page therefore gets at least that much
+# margin at top and bottom, otherwise the driver cuts off the content there.
 PDF_FEED_MARGIN_MM = 3
 
 
 def pdf_page_mm(label_height_px):
-    """Länge der PDF-Seite in ganzen Millimetern, passend für `-o PageSize=Custom.62x…mm`."""
+    """Length of the PDF page in whole millimetres, suitable for `-o PageSize=Custom.62x…mm`."""
     return math.ceil(label_height_px / LABEL_DPI * 25.4 + 2 * PDF_FEED_MARGIN_MM)
 
 
@@ -227,10 +227,10 @@ def _pdf_page(label):
 
 
 def labels_pdf(labels, font=None):
-    """Mehrere Labels als PDF, eine Seite pro Label: 62 mm breit, Etikett plus Rand für den Vorschub lang.
+    """Several labels as a PDF, one page per label: 62 mm wide, label plus feed margin long.
 
-    `labels` ist eine Liste von (url, code). Im PDF selbst steht kein
-    Schneidbefehl; der Druckertreiber schneidet nach jeder Seite (CUPS:
+    `labels` is a list of (url, code). The PDF itself contains no cut
+    command; the printer driver cuts after every page (CUPS:
     BrCutLabel=1).
     """
     pages = [_pdf_page(render_label(url, code, font=font)) for url, code in labels]
@@ -244,47 +244,47 @@ def labels_pdf(labels, font=None):
 
 
 def label_pdf(url, code, font=None):
-    """Das Label als einseitiges PDF."""
+    """The label as a single-page PDF."""
     return labels_pdf([(url, code)], font=font)
 
 
-# --- Brother-QL-Rasterdaten -------------------------------------------------
-# Druckdatei für den QL-700 (und baugleiche QL-Drucker mit 720 Punkten
-# Druckkopfbreite), die ohne Treiber roh an den Drucker geht und den
-# Schneidbefehl selbst enthält. Aufbau nach Brothers „Raster Command Reference“
-# (QL-500/550/560/570/580N/650TD/700/1050/1060N); die Befehlsfolge entspricht
-# der des verbreiteten Werkzeugs brother_ql für Modell QL-700, Rolle „62“,
-# nur ohne dessen Statusabfrage.
+# --- Brother QL raster data -------------------------------------------------
+# Print file for the QL-700 (and identical QL printers with a 720-dot
+# print head) that goes to the printer raw, without a driver, and contains
+# the cut command itself. Structure follows Brother's "Raster Command Reference"
+# (QL-500/550/560/570/580N/650TD/700/1050/1060N); the command sequence matches
+# that of the widespread tool brother_ql for model QL-700, roll "62",
+# just without its status request.
 
-QL_HEAD_PX = 720  # Druckkopf: 90 Bytes je Rasterzeile
-# Druckbreite in Pixeln -> (Bandbreite in mm, Abstand vom rechten Rand des Druckkopfs)
+QL_HEAD_PX = 720  # print head: 90 bytes per raster line
+# print width in pixels -> (tape width in mm, offset from the right edge of the print head)
 QL_ENDLESS_TAPES = {696: (62, 12), 306: (29, 6)}
-QL_FEED_MARGIN = 35  # Vorschub vor und nach jedem Label in Punkten (3 mm), Vorgabe für Endlosband
+QL_FEED_MARGIN = 35  # feed before and after each label in dots (3 mm), the default for continuous tape
 
 
 def labels_ql_raster(labels, font=None):
-    """Mehrere Labels als Brother-QL-Rasterdatei mit Schnitt nach jedem Label.
+    """Several labels as a Brother QL raster file with a cut after each label.
 
-    `labels` ist eine Liste von (url, code). Die Datei wird unverändert an den
-    Drucker geschickt, z. B. `lp -d Brother_QL-700 -o raw labels.bin`.
+    `labels` is a list of (url, code). The file is sent to the printer
+    unchanged, e.g. `lp -d Brother_QL-700 -o raw labels.bin`.
     """
-    data = bytearray(b'\x00' * 200)  # angefangene Befehle verwerfen
-    data += b'\x1b\x40'               # ESC @  Drucker zurücksetzen
+    data = bytearray(b'\x00' * 200)  # discard commands in progress
+    data += b'\x1b\x40'               # ESC @  reset the printer
     for index, (url, code) in enumerate(labels):
         label = render_label(url, code, font=font)
         if label.width not in QL_ENDLESS_TAPES:
             raise ValueError(f'Keine QL-Rolle mit {label.width} Pixeln Druckbreite bekannt (LABEL_WIDTH_PX).')
         tape_mm, offset_right = QL_ENDLESS_TAPES[label.width]
-        # ESC i z: Medium. 0xCE = Typ, Breite und Länge gültig, Drucker soll sie prüfen,
-        # Qualität vor Geschwindigkeit; 0x0A = Endlosband, Länge 0; danach
-        # Zeilenzahl und „erste Seite?“.
+        # ESC i z: media. 0xCE = type, width and length valid, printer should check them,
+        # quality over speed; 0x0A = continuous tape, length 0; then
+        # number of lines and "first page?".
         data += b'\x1b\x69\x7a' + bytes([0xCE, 0x0A, tape_mm, 0])
         data += label.height.to_bytes(4, 'little') + bytes([0 if index == 0 else 1, 0])
-        data += b'\x1b\x69\x4d\x40'  # ESC i M: automatisch schneiden
-        data += b'\x1b\x69\x41\x01'  # ESC i A: nach jedem Label
-        data += b'\x1b\x69\x4b\x08'  # ESC i K: auch nach dem letzten schneiden
-        data += b'\x1b\x69\x64' + QL_FEED_MARGIN.to_bytes(2, 'little')  # ESC i d: Vorschub
-        # Der Drucker erwartet die Zeile von rechts nach links; 1 = schwarz.
+        data += b'\x1b\x69\x4d\x40'  # ESC i M: cut automatically
+        data += b'\x1b\x69\x41\x01'  # ESC i A: after every label
+        data += b'\x1b\x69\x4b\x08'  # ESC i K: also cut after the last one
+        data += b'\x1b\x69\x64' + QL_FEED_MARGIN.to_bytes(2, 'little')  # ESC i d: feed
+        # The printer expects the line from right to left; 1 = black.
         line = Image.new('1', (QL_HEAD_PX, label.height), 1)
         mirrored = label.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         line.paste(mirrored, (QL_HEAD_PX - label.width - offset_right, 0))
@@ -292,7 +292,7 @@ def labels_ql_raster(labels, font=None):
         row_bytes = QL_HEAD_PX // 8
         for row in range(label.height):
             data += b'\x67\x00' + bytes([row_bytes]) + raster[row * row_bytes:(row + 1) * row_bytes]
-        # SUB: drucken und vorschieben – nach jedem Label, damit es einzeln
-        # abgeschnitten herauskommt.
+        # SUB: print and feed – after every label, so that each comes out cut
+        # off individually.
         data += b'\x1a'
     return bytes(data)

@@ -29,7 +29,7 @@
     <button class="btn btn-secondary">Suchen</button>
   </div>
   {% if tags %}
-  {# Mehrere Tags lassen sich verbinden: Die Crate muss jedes davon tragen. #}
+  {# Several tags can be combined: the crate has to carry every one of them. #}
   <div class="col-12 tag-filter">
     <div class="tag-picker" id="filter-tags">
       {% for tag in tags %}<div><label><input type="checkbox" name="tag" value="{{ tag }}"{% if tag|stringformat:"s" in selected_tags %} checked{% endif %}> {{ tag }}</label></div>
@@ -93,7 +93,7 @@
       <button class="btn btn-primary" id="print-go">Drucken</button>
     </div>
     {% if tags %}
-    {# Ohne name: Die Auswahl gehört nicht zum Druckformular. Das Skript unten schickt sie über #tag-form ab. #}
+    {# No name: the selection is not part of the print form. The script below submits it via #tag-form. #}
     <div class="tag-what">
       <select class="form-select" id="bulk-tags" aria-label="Tag für die ausgewählten Crates">
         <option value="">Tag wählen …</option>
@@ -120,7 +120,7 @@
 </form>
 <script src="{% static 'crates/tagpicker.js' %}"></script>
 <script>
-  // Tag-Filter: Ein gewähltes oder herausgenommenes Tag gilt sofort.
+  // Tag filter: a tag that is chosen or removed applies immediately.
   initTagPicker(document.getElementById('filter-tags'), {
     placeholder: 'Nach Tag filtern …',
     onChange: function () { document.getElementById('filter-tags').closest('form').submit(); }
@@ -139,7 +139,7 @@
       document.getElementById('print-go').disabled = !n;
       tagButtons.forEach(function (button) { button.disabled = !n; });
     }
-    // Tags an allen angehakten Crates setzen oder entfernen
+    // add or remove tags on all checked crates
     var tagForm = document.getElementById('tag-form'), tagInput = document.getElementById('bulk-tags');
     var tagButtons = Array.prototype.slice.call(document.querySelectorAll('[data-tag-action]'));
     function sendTags(action) {
@@ -164,14 +164,14 @@
       update();
     });
     form.addEventListener('change', update);
-    // die zuletzt gewählte Variante vormerken
+    // remember the variant chosen last
     var what = document.getElementById('print-what');
     try {
       var last = localStorage.getItem('print-what');
       if (last && what.querySelector('option[value="' + last + '"]')) what.value = last;
       what.addEventListener('change', function () { try { localStorage.setItem('print-what', what.value); } catch (error) {} });
     } catch (error) {}
-    // nach „zurück“ aus der Druckansicht stehen die Haken noch
+    // after "back" from the print view the checkboxes are still set
     window.addEventListener('pageshow', update);
   })();
 </script>

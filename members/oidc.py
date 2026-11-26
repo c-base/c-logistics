@@ -1,4 +1,4 @@
-"""Anmeldung über OAuth2 / OpenID Connect (Authorization Code Flow)."""
+"""Login via OAuth2 / OpenID Connect (authorization code flow)."""
 
 from authlib.integrations.django_client import OAuth
 from django.conf import settings
@@ -38,21 +38,21 @@ def _free_username(wanted):
 
 
 def sync_member(claims):
-    """Legt den Member zum OIDC-Konto an oder aktualisiert Name und E-Mail.
+    """Creates the member for the OIDC account or updates name and e-mail.
 
-    Wiedererkannt wird ein Konto über das `sub`-Claim. Beim ersten Login
-    übernimmt der Member ein bestehendes lokales Konto mit gleichem
-    Benutzernamen samt dessen Rechten und Crates, statt daneben ein zweites
-    („alice-2“) zu bekommen. Das setzt voraus, dass der Provider Benutzernamen
-    nur an ihre rechtmäßigen Inhaber vergibt.
+    An account is recognised by the `sub` claim. On the first login the member
+    takes over an existing local account with the same username, including its
+    permissions and crates, instead of getting a second one ("alice-2") next
+    to it. This assumes that the provider hands out usernames only to their
+    rightful owners.
     """
     sub = claims['sub']
     member = Member.objects.filter(oidc_sub=sub).first()
     if member is None and claims.get('preferred_username'):
-        # Nie übernommen werden der Platzhalter „unbecannt“ und Konten, die
-        # schon zu einem anderen OIDC-Konto gehören.
-        # So kommt auch an sein Konto, wer als Verantwortlicher vorgemerkt wurde,
-        # bevor er sich je angemeldet hat (Member.reserve).
+        # Never taken over are the placeholder "unbecannt" and accounts that
+        # already belong to another OIDC account.
+        # This is also how someone gets their account who was reserved as a
+        # responsible member before ever logging in (Member.reserve).
         member = Member.find_by_username(claims['preferred_username'], oidc_sub__isnull=True)
         if member is not None and member.is_unknown:
             member = None

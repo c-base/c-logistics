@@ -1,5 +1,5 @@
-/* Druckkarten: zwei A5-Karten quer auf A4 hoch oder vier A6-Karten quer auf
-   A4 quer (Seitenformat steht im Template). Hell und kontrastreich, damit sie aus der Entfernung lesbar ist. */
+/* Print cards: two A5 cards in landscape on A4 portrait or four A6 cards in landscape on
+   A4 landscape (the page size is set in the template). Light and high-contrast so that it is readable from a distance. */
 * { box-sizing: border-box; }
 html { background: #333; }
 body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif; color: #000; }
@@ -11,18 +11,18 @@ body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, "Liberation S
 .toolbar button { font: inherit; padding: 0.35rem 1rem; background: #2a9fd6; color: #fff; border: 0; border-radius: 3px; cursor: pointer; }
 .toolbar .hint { flex-basis: 100%; }
 
-/* Raster mit festen Anteilen statt Karten fester Breite: zwei Karten zu 148,5 mm
-   sind in Firefox gerundet breiter als das Blatt, die zweite rutschte in die
-   nächste Zeile und die untere Hälfte fiel aus dem Blatt. */
+/* Grid with fixed shares instead of fixed-width cards: two cards of 148.5 mm
+   are, after rounding, wider than the sheet in Firefox; the second one slipped into
+   the next row and the lower half fell off the sheet. */
 .sheet { width: 210mm; height: 297mm; margin: 1rem auto; background: #fff; overflow: hidden; box-shadow: 0 0 12px #000;
          display: grid; grid-template: repeat(2, 1fr) / 1fr; break-after: page; }
 .sheet:last-child { break-after: auto; }
 .a6 .sheet { width: 297mm; height: 210mm; grid-template-columns: repeat(2, 1fr); }
 
-/* A5 quer: halbes A4-Blatt. Schnittlinie unter der oberen Karte. */
+/* A5 landscape: half an A4 sheet. Cut line below the upper card. */
 .card { min-width: 0; min-height: 0; padding: 9mm; display: flex; gap: 6mm; font-size: 13pt; line-height: 1.3; overflow: hidden; }
 .a5 .card:first-child { border-bottom: 0.3mm dashed #888; }
-/* A6 quer: ein Viertel des A4-Blatts. Schnittlinien in der Blattmitte. */
+/* A6 landscape: a quarter of the A4 sheet. Cut lines in the middle of the sheet. */
 .a6 .card { padding: 7mm; gap: 4mm; font-size: 9.5pt; }
 .a6 .card:nth-child(odd) { border-right: 0.3mm dashed #888; }
 .a6 .card:nth-child(-n+2) { border-bottom: 0.3mm dashed #888; }
@@ -48,8 +48,8 @@ dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 
 footer { margin-top: auto; padding-top: 0.6em; font-size: 0.62em; color: #555; overflow-wrap: anywhere; flex: none; }
 
-/* Fotos in der rechten Spalte, unbeschnitten. Die Anordnung rechnet das Skript
-   in crate_card.html aus; ohne Skript stehen sie eingepasst im Raster. */
+/* Photos in the right column, uncropped. The script in crate_card.html works out
+   the arrangement; without the script they are fitted into the grid. */
 .photos { display: grid; gap: 2mm; grid-template-columns: 1fr; grid-auto-rows: 1fr; }
 .photos.n3, .photos.n4 { grid-template-columns: 1fr 1fr; }
 .photos.n3 img:first-child { grid-column: span 2; }

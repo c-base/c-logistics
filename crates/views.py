@@ -24,9 +24,9 @@ from .reminders import make_plan, send_reminders
 
 
 def manifest(request):
-    """Web-App-Manifest: damit lässt sich c-logistics auf dem Telefon als App installieren.
+    """Web app manifest: lets c-logistics be installed on the phone as an app.
 
-    Ohne Anmeldung abrufbar, weil der Browser es ohne Sitzung lädt.
+    Available without login because the browser loads it without a session.
     """
     def icon(name, size, purpose='any'):
         return {'src': static(f'crates/icons/{name}'), 'sizes': f'{size}x{size}', 'type': 'image/png', 'purpose': purpose}
@@ -38,7 +38,7 @@ def manifest(request):
         'description': 'Verwaltung der c-base cargo crates',
         'lang': 'de',
         'start_url': '/',
-        # Alles unter der Adresse gehört zur App – auch /<ID> aus QR-Code und NFC-Tag.
+        # Everything under the address belongs to the app – including /<ID> from QR code and NFC tag.
         'scope': '/',
         'display': 'standalone',
         'background_color': '#060606',
@@ -53,7 +53,7 @@ def manifest(request):
 
 
 class CrateLookupMixin:
-    """Findet die Crate über die ID in der URL, unabhängig von Groß-/Kleinschreibung."""
+    """Finds the crate by the ID in the URL, case-insensitively."""
 
     model = Crate
 
@@ -62,13 +62,13 @@ class CrateLookupMixin:
 
 
 def selected_tags(request):
-    """Die Tags, nach denen gefiltert wird (?tag=eva:40c3&tag=transport:1), ohne Dubletten."""
+    """The tags being filtered by (?tag=eva:40c3&tag=transport:1), without duplicates."""
     names = [name.strip().lower() for name in request.GET.getlist('tag') if name.strip()]
     return list(dict.fromkeys(names))
 
 
 def filtered_crates(request):
-    """Die Crates der Liste mit Suche und Filtern aus der Adresse, nach ID sortiert."""
+    """The crates of the list with search and filters from the address, ordered by ID."""
     qs = (
         Crate.objects.select_related('location')
         .prefetch_related('responsible', 'tags')
@@ -90,7 +90,7 @@ def filtered_crates(request):
         qs = qs.filter(responsible=request.user)
     if request.GET.get('attention'):
         qs = qs.filter(needs_attention=True)
-    # die Crate muss jedes der gewählten Tags tragen
+    # the crate has to carry every one of the chosen tags
     for name in selected_tags(request):
         tag = Tag.find(name)
         qs = qs.filter(tags=tag) if tag else qs.none()
@@ -111,7 +111,7 @@ class CrateListView(LoginRequiredMixin, generic.ListView):
         context['attention'] = bool(self.request.GET.get('attention'))
         context['tags'] = Tag.objects.all()
         context['selected_tags'] = selected_tags(self.request)
-        # für „zurück“ und „weiter“: alle Filter außer der Seite
+        # for "previous" and "next": all filters except the page
         params = self.request.GET.copy()
         params.pop('page', None)
         context['filter_query'] = params.urlencode()
@@ -128,7 +128,7 @@ class CrateDetailView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
         context['public_url'] = public_url(self.object, self.request)
         context['base_url_configured'] = bool(settings.PUBLIC_BASE_URL)
         context['copies'] = settings.PRINT_COPIES
-        # Nachbarn in der Reihenfolge der IDs: zum Blättern, auf dem Telefon per Wischen
+        # neighbours in ID order: for paging through, on the phone by swiping
         neighbours = Crate.objects.only('code', 'name')
         context['previous_crate'] = neighbours.filter(code__lt=self.object.code).order_by('-code').first()
         context['next_crate'] = neighbours.filter(code__gt=self.object.code).order_by('code').first()
@@ -139,7 +139,7 @@ MAX_COPIES = 10
 
 
 def copies_from(request):
-    """Wie oft jedes Label bzw. jede Karte gedruckt wird: ?copies=1…10, sonst PRINT_COPIES."""
+    """How often each label or card is printed: ?copies=1…10, otherwise PRINT_COPIES."""
     try:
         copies = int(request.GET.get('copies', ''))
     except ValueError:
@@ -148,10 +148,10 @@ def copies_from(request):
 
 
 class CardSheetMixin:
-    """Druckkarten mit allen Angaben und Fotos für den Farblaser.
+    """Print cards with all details and photos for the colour laser printer.
 
-    A5 quer: zwei Karten auf einem A4-Blatt im Hochformat.
-    A6 quer: vier Karten auf einem A4-Blatt im Querformat.
+    A5 landscape: two cards on one A4 sheet in portrait.
+    A6 landscape: four cards on one A4 sheet in landscape.
     """
 
     template_name = 'crates/crate_card.html'
@@ -163,7 +163,7 @@ class CardSheetMixin:
         chosen = chosen if chosen in self.formats else 'a5'
         per_sheet = self.formats[chosen][1]
         copies = copies_from(self.request)
-        # Exemplare einer Crate stehen hintereinander, bei A5 also auf demselben Blatt.
+        # Copies of a crate follow one another, so with A5 they are on the same sheet.
         cards = [
             {
                 'crate': crate,
@@ -182,20 +182,20 @@ class CardSheetMixin:
             'crate_count': len(crates),
             'copies': copies,
             'copy_choices': sorted({1, 2, 3, 4, copies}),
-            # Auswahl ohne Kopienzahl, für die Umschalter der Exemplare
+            # selection without the number of copies, for the copies switches
             'selection_base': base.urlencode(),
             'format': chosen,
             'formats': [(key, label) for key, (label, _) in self.formats.items()],
             'per_sheet': per_sheet,
             'sheets': [cards[start:start + per_sheet] for start in range(0, len(cards), per_sheet)],
             'cards': cards,
-            # Auswahl samt Kopienzahl, aber ohne Format, für die Umschalter des Formats
+            # selection including the number of copies but without the format, for the format switches
             'selection': query.urlencode(),
         }
 
 
 class CrateCardView(LoginRequiredMixin, CrateLookupMixin, CardSheetMixin, generic.DetailView):
-    """Die Karte einer einzelnen Crate."""
+    """The card of a single crate."""
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -205,7 +205,7 @@ class CrateCardView(LoginRequiredMixin, CrateLookupMixin, CardSheetMixin, generi
 
 
 class CardSheetView(LoginRequiredMixin, CardSheetMixin, generic.TemplateView):
-    """Karten mehrerer Crates zusammen auf möglichst wenigen Blättern: /cards/?c=0001&c=0002"""
+    """Cards of several crates together on as few sheets as possible: /cards/?c=0001&c=0002"""
 
     def get(self, request, *args, **kwargs):
         self.crates = selected_crates(request)
@@ -222,7 +222,7 @@ class CardSheetView(LoginRequiredMixin, CardSheetMixin, generic.TemplateView):
 
 
 class CrateLabelView(LoginRequiredMixin, CrateLookupMixin, generic.View):
-    """Das Label als PNG oder PDF in Druckauflösung; gedruckt wird von einem beliebigen Gerät."""
+    """The label as PNG or PDF in print resolution; printing is done from any device."""
 
     def get_queryset(self):
         return Crate.objects.all()
@@ -230,7 +230,7 @@ class CrateLabelView(LoginRequiredMixin, CrateLookupMixin, generic.View):
     def get(self, request, *args, **kwargs):
         crate = self.get_object()
         url = public_url(crate, request)
-        # ?font=… zeigt das Label zum Vergleich in einer anderen Schrift.
+        # ?font=… shows the label in another font for comparison.
         font = request.GET.get('font')
         if font not in FONTS:
             font = None
@@ -245,16 +245,16 @@ class CrateLabelView(LoginRequiredMixin, CrateLookupMixin, generic.View):
 
 
 def selected_crates(request, data=None):
-    """Die in der Liste angehakten Crates (?c=0001&c=0002), nach ID sortiert."""
+    """The crates checked in the list (?c=0001&c=0002), ordered by ID."""
     data = request.GET if data is None else data
     codes = {normalize_code(code) for code in data.getlist('c') if len(code) <= 4}
     return list(Crate.objects.filter(code__in=codes).order_by('code'))
 
 
 class BulkTagView(LoginRequiredMixin, generic.View):
-    """Setzt oder entfernt Tags an allen in der Liste angehakten Crates.
+    """Adds or removes tags on all crates checked in the list.
 
-    POST /tag/ mit c=0001&c=0002, tags=transport:1 und action=add|remove
+    POST /tag/ with c=0001&c=0002, tags=transport:1 and action=add|remove
     """
 
     def post(self, request, *args, **kwargs):
@@ -266,7 +266,7 @@ class BulkTagView(LoginRequiredMixin, generic.View):
         if not crates or not names:
             messages.error(request, 'Bitte Crates auswählen und ein Tag wählen.')
             return redirect(target)
-        # nur Tags aus der festen Auswahl; neue legen Manager unter „Tags verwalten“ an
+        # only tags from the fixed selection; managers create new ones under "Tags verwalten"
         tags = [Tag.find(name) for name in names]
         if None in tags:
             unknown = ', '.join(name for name, tag in zip(names, tags) if tag is None)
@@ -286,18 +286,18 @@ class BulkTagView(LoginRequiredMixin, generic.View):
 
 
 def _csv_cell(value):
-    """Als Text für eine Tabellenkalkulation: Was wie eine Formel beginnt, wird entschärft."""
+    """As text for a spreadsheet: anything that starts like a formula is defused."""
     text = str(value)
     return f"'{text}" if text[:1] in ('=', '+', '-', '@') else text
 
 
 class PackListView(LoginRequiredMixin, generic.View):
-    """Packliste zum Abhaken: druckbar oder als CSV.
+    """Packing list for ticking off: printable or as CSV.
 
-    /packlist/?tag=eva:40c3            alle Crates, auf die die Filter der Liste passen
-    /packlist/?c=0001&c=0002           die in der Liste angehakten Crates
-    format=csv                         statt der Seite eine CSV-Datei
-    format=md                          statt der Seite eine Markdown-Datei mit Checkliste
+    /packlist/?tag=eva:40c3            all crates matching the filters of the list
+    /packlist/?c=0001&c=0002           the crates checked in the list
+    format=csv                         a CSV file instead of the page
+    format=md                          a Markdown file with a checklist instead of the page
     """
 
     def get(self, request, *args, **kwargs):
@@ -317,7 +317,7 @@ class PackListView(LoginRequiredMixin, generic.View):
         params, markdown_params = request.GET.copy(), request.GET.copy()
         params['format'] = 'csv'
         markdown_params['format'] = 'md'
-        # zurück zur Liste mit denselben Filtern; angehakte Crates stehen dort nicht in der Adresse
+        # back to the list with the same filters; checked crates are not part of the address there
         back = request.GET.copy()
         for key in ('c', 'format', 'copies'):
             back.pop(key, None)
@@ -335,13 +335,13 @@ class PackListView(LoginRequiredMixin, generic.View):
         return f'crates-{name}.{extension}'
 
     def markdown(self, request, crates, tags, title):
-        """Die Packliste als Markdown-Checkliste zum Abhaken, z. B. für Wiki, Pad oder Issue.
+        """The packing list as a Markdown checklist for ticking off, e.g. for wiki, pad or issue.
 
-        Eine Liste und keine Tabelle: Kästchen (`- [ ]`) gibt es in Markdown nur an Listenpunkten.
+        A list rather than a table: Markdown only has checkboxes (`- [ ]`) on list items.
         """
 
         def text(value):
-            # einzeilig, und Zeichen mit Bedeutung in Markdown bleiben, was sie sind
+            # single-line, and characters with a meaning in Markdown stay what they are
             return re.sub(r'([\\`*_\[\]<>|])', r'\\\1', ' '.join(str(value).split()))
 
         lines = [
@@ -363,7 +363,7 @@ class PackListView(LoginRequiredMixin, generic.View):
         return response
 
     def csv(self, request, crates, tags):
-        # Semikolon und BOM, damit ein deutsches Excel die Datei ohne Nachfragen richtig öffnet
+        # semicolon and BOM so that a German Excel opens the file correctly without asking
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = f'attachment; filename="{self.filename(tags, "csv")}"'
         response.write('\ufeff')
@@ -384,12 +384,12 @@ class PackListView(LoginRequiredMixin, generic.View):
 
 
 class PrintDispatchView(LoginRequiredMixin, generic.View):
-    """Ziel der Druckleiste in der Liste: leitet je nach gewählter Variante weiter.
+    """Target of the print bar in the list: redirects depending on the chosen variant.
 
     /print/?what=labels-pdf&copies=2&c=0001&c=0002
     """
 
-    # Variante -> (Bezeichnung in der Auswahl, Ansicht, Format)
+    # variant -> (label in the selection, view, format)
     variants = {
         'labels-pdf': ('Labels als PDF', 'crates:labels', 'pdf'),
         'labels-ql': ('Labels als QL-Druckdatei (mit Schnitt)', 'crates:labels', 'ql'),
@@ -409,10 +409,10 @@ class PrintDispatchView(LoginRequiredMixin, generic.View):
 
 
 class LabelSheetView(LoginRequiredMixin, generic.View):
-    """Labels mehrerer Crates in einer Druckdatei für den QL-700: /labels/?c=0001&c=0002
+    """Labels of several crates in one print file for the QL-700: /labels/?c=0001&c=0002
 
-    format=pdf  eine Seite pro Label; der Druckertreiber schneidet nach jeder Seite
-    format=ql   Brother-Rasterdaten mit Schneidbefehl nach jedem Label, roh an den Drucker
+    format=pdf  one page per label; the printer driver cuts after every page
+    format=ql   Brother raster data with a cut command after every label, raw to the printer
     """
 
     def get(self, request, *args, **kwargs):
@@ -438,14 +438,14 @@ class LabelSheetView(LoginRequiredMixin, generic.View):
 
 
 class MemberSearchView(LoginRequiredMixin, generic.View):
-    """Vorschläge für das Suchfeld bei den Verantwortlichen: /members/search/?q=ali"""
+    """Suggestions for the search field of the responsible members: /members/search/?q=ali"""
 
     limit = 10
 
     def get(self, request, *args, **kwargs):
         members = Member.objects.exclude(username=Member.UNKNOWN_USERNAME)
         terms = request.GET.get('q', '').split()
-        # jedes Wort muss vorkommen, egal ob im Nutzernamen, Vor- oder Nachnamen
+        # every word has to occur, whether in the username, first name or last name
         for term in terms:
             members = members.filter(
                 Q(username__icontains=term) | Q(first_name__icontains=term) | Q(last_name__icontains=term)
@@ -455,19 +455,19 @@ class MemberSearchView(LoginRequiredMixin, generic.View):
 
 
 def member_choice(member):
-    """Ein Member, wie ihn das Suchfeld bei den Verantwortlichen erwartet."""
+    """A member as the search field of the responsible members expects it."""
     return {'id': member.pk, 'label': member.label, 'username': member.username}
 
 
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Nur für die Rolle „Manager“; alle anderen Angemeldeten bekommen 403."""
+    """Only for the "Manager" role; all other logged-in users get 403."""
 
     def test_func(self):
         return self.request.user.is_manager
 
 
 class MemberAddView(ManagerRequiredMixin, generic.View):
-    """Merkt einen Member vor, der sich noch nie angemeldet hat: POST /members/add/ mit username=…"""
+    """Reserves a member who has never logged in: POST /members/add/ with username=…"""
 
     def post(self, request, *args, **kwargs):
         try:
@@ -478,7 +478,7 @@ class MemberAddView(ManagerRequiredMixin, generic.View):
 
 
 class TagManageView(ManagerRequiredMixin, generic.TemplateView):
-    """Manager legen Tags an, benennen sie um und löschen sie: /tags/"""
+    """Managers create, rename and delete tags: /tags/"""
 
     template_name = 'crates/tag_manage.html'
 
@@ -519,13 +519,13 @@ class TagManageView(ManagerRequiredMixin, generic.TemplateView):
         except ValueError as error:
             messages.error(request, str(error))
             if action == 'add':
-                # die Eingabe bleibt stehen, damit man sie korrigieren kann
+                # the input stays so that it can be corrected
                 return self.render_to_response(self.get_context_data(entered=request.POST.get('names', '')))
         return redirect('crates:tags')
 
 
 class RemindView(ManagerRequiredMixin, generic.TemplateView):
-    """Vorschau und Versand der Erinnerungen an die Verantwortlichen: /remind/"""
+    """Preview and sending of the reminders to the responsible members: /remind/"""
 
     template_name = 'crates/remind.html'
 
@@ -541,7 +541,7 @@ class RemindView(ManagerRequiredMixin, generic.TemplateView):
         if not settings.MAIL_ENABLED:
             messages.error(request, 'Der Mailversand ist nicht eingerichtet (EMAIL_HOST fehlt).')
             return redirect('crates:remind')
-        # Der Plan entsteht beim Absenden neu: Wer inzwischen erinnert wurde, bekommt keine zweite Mail.
+        # The plan is rebuilt on submit: whoever has been reminded in the meantime gets no second mail.
         sent, failed = send_reminders(make_plan(), request.user, request)
         if sent:
             crates = len({crate.pk for reminder in sent for crate in reminder.crates})
@@ -562,7 +562,7 @@ class CrateFormMixin:
 
 
 class CrateCreateView(ManagerRequiredMixin, CrateFormMixin, generic.CreateView):
-    """Neue Crates legen vorerst nur Manager an; bearbeiten darf weiter jeder Member."""
+    """For now only managers create new crates; every member may still edit."""
 
     model = Crate
 
@@ -622,7 +622,7 @@ class ItemDeleteView(LoginRequiredMixin, generic.DeleteView):
 
 
 class PhotoUploadView(LoginRequiredMixin, generic.View):
-    """Nimmt ein oder mehrere Fotos vom Inhalt entgegen, direkt aus der Handykamera oder aus der Galerie."""
+    """Accepts one or more photos of the contents, straight from the phone camera or from the gallery."""
 
     def post(self, request, *args, **kwargs):
         crate = get_object_or_404(Crate, code=normalize_code(kwargs['code']))
@@ -638,14 +638,14 @@ class PhotoUploadView(LoginRequiredMixin, generic.View):
 
 
 class PhotoLookupMixin:
-    """Findet das Foto über Crate-ID und Fotonummer; passen beide nicht zusammen, gibt es 404."""
+    """Finds the photo by crate ID and photo number; if the two do not match, the result is 404."""
 
     def get_photo(self):
         return get_object_or_404(Photo, pk=self.kwargs['pk'], crate__code=normalize_code(self.kwargs['code']))
 
 
 class PhotoFileView(LoginRequiredMixin, PhotoLookupMixin, generic.View):
-    """Liefert Bild oder Vorschau aus – wie alles andere nur für angemeldete Member."""
+    """Serves image or thumbnail – like everything else only to logged-in members."""
 
     def get(self, request, *args, **kwargs):
         photo = self.get_photo()
@@ -655,10 +655,10 @@ class PhotoFileView(LoginRequiredMixin, PhotoLookupMixin, generic.View):
             response = FileResponse(field.open('rb'), content_type='image/jpeg')
         except FileNotFoundError:
             raise Http404('Die Bilddatei fehlt.')
-        # Name beim Speichern: Crate-ID und Fotonummer, z. B. 10F0-7.jpg
+        # Name when saving: crate ID and photo number, e.g. 10F0-7.jpg
         suffix = '-thumb' if thumbnail else ''
         response['Content-Disposition'] = f'inline; filename="{photo.crate.code}-{photo.pk}{suffix}.jpg"'
-        # Ein Foto ändert sich nie, es wird höchstens gelöscht.
+        # A photo never changes; at most it gets deleted.
         response['Cache-Control'] = 'private, max-age=86400'
         return response
 

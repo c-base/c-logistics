@@ -18,7 +18,7 @@ NEXT_SESSION_KEY = 'oidc_next'
 
 
 class MemberLoginView(LoginView):
-    """Zeigt den SSO-Knopf, wenn OIDC eingerichtet ist, und das Formular für lokale Konten."""
+    """Shows the SSO button when OIDC is configured, and the form for local accounts."""
 
     authentication_form = LoginForm
 
@@ -35,7 +35,7 @@ def oidc_login(request):
         raise Http404
     request.session[NEXT_SESSION_KEY] = request.GET.get('next', '')
     callback = reverse('oidc-callback')
-    # Hinter einem Reverse Proxy ist die öffentliche Adresse verlässlicher als der Request.
+    # Behind a reverse proxy the public address is more reliable than the request.
     redirect_uri = settings.PUBLIC_BASE_URL + callback if settings.PUBLIC_BASE_URL else request.build_absolute_uri(callback)
     return oidc.get_client().authorize_redirect(request, redirect_uri)
 

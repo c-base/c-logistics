@@ -1,8 +1,8 @@
 #!/bin/sh
-# Start im Container: Datenbank auf Stand bringen, dann den App-Server starten.
+# Start in the container: bring the database up to date, then start the app server.
 set -e
 
-# Postgres braucht nach dem Start ein paar Sekunden; solange neu versuchen.
+# Postgres needs a few seconds after starting; keep retrying until then.
 tries=0
 until python manage.py migrate --noinput; do
     tries=$((tries + 1))

@@ -34,9 +34,9 @@ urlpatterns = [
     path('print/', views.PrintDispatchView.as_view(), name='print'),
     path('item/<int:pk>/', views.ItemUpdateView.as_view(), name='item-update'),
     path('item/<int:pk>/delete/', views.ItemDeleteView.as_view(), name='item-delete'),
-    # Ziel von NFC-Tag und QR-Code: https://crates.c-base.org/<ID>
-    # Achtung: Jeder Pfad aus höchstens vier Hex-Zeichen gehört damit einer Crate.
-    # Neue Seiten dürfen deshalb nicht z. B. /add, /feed oder /cafe heißen.
+    # Target of NFC tag and QR code: https://crates.c-base.org/<ID>
+    # Careful: every path of at most four hex characters thereby belongs to a crate.
+    # New pages must therefore not be called e.g. /add, /feed or /cafe.
     path('<hex:code>', views.CrateDetailView.as_view(), name='detail'),
     path('<hex:code>/label.png', views.CrateLabelView.as_view(), {'extension': 'png'}, name='label'),
     path('<hex:code>/label.pdf', views.CrateLabelView.as_view(), {'extension': 'pdf'}, name='label-pdf'),
@@ -48,7 +48,7 @@ urlpatterns = [
     path('<hex:code>/pic/<int:pk>.jpg', views.PhotoFileView.as_view(), {'variant': 'image'}, name='photo'),
     path('<hex:code>/pic/<int:pk>-thumb.jpg', views.PhotoFileView.as_view(), {'variant': 'thumbnail'}, name='photo-thumbnail'),
     path('<hex:code>/pic/<int:pk>/delete/', views.PhotoDeleteView.as_view(), name='photo-delete'),
-    # Frühere Schreibweisen leiten auf die kurze Adresse um.
+    # Earlier spellings redirect to the short address.
     path('<hex:code>/', RedirectView.as_view(pattern_name='crates:detail', permanent=True)),
     path('c/<hex:code>/', RedirectView.as_view(pattern_name='crates:detail', permanent=True)),
 ]

@@ -1,5 +1,5 @@
 {% include "django/forms/widgets/multiple_input.html" %}
-{# Weitere Member kommen über die Suche dazu; das Skript in crate_form.html blendet sie ein. #}
+{# More members are added via the search; the script in crate_form.html shows them. #}
 <div class="member-add" data-search-url="{% url 'crates:member-search' %}"{% if widget.can_add %} data-add-url="{% url 'crates:member-add' %}"{% endif %} hidden>
   <input type="search" class="form-control" placeholder="Member hinzufügen: Name tippen …"
          autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search"

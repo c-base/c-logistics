@@ -1,4 +1,4 @@
-"""Erinnerungsmails an die Verantwortlichen von Crates mit „Needs attention“."""
+"""Reminder mails to the responsible members of crates with "Needs attention"."""
 
 import logging
 from dataclasses import dataclass, field
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Reminder:
-    """Eine Mail: ein Member und alle seine Crates, die Aufmerksamkeit brauchen."""
+    """One mail: one member and all of their crates that need attention."""
 
     member: object
     address: str
@@ -26,9 +26,9 @@ class Reminder:
 @dataclass
 class Plan:
     reminders: list = field(default_factory=list)
-    # vor Kurzem erinnert: bekommen noch keine neue Mail
+    # reminded recently: no new mail yet
     recent: list = field(default_factory=list)
-    # nur „unbecannt“ verantwortlich: niemand, dem man schreiben könnte
+    # only "unbecannt" is responsible: nobody one could write to
     unreachable: list = field(default_factory=list)
 
     @property
@@ -37,7 +37,7 @@ class Plan:
 
 
 def make_plan(now=None):
-    """Wer für welche Crates eine Mail bekäme. Verschickt nichts."""
+    """Who would get a mail for which crates. Sends nothing."""
     now = now or timezone.now()
     threshold = now - timedelta(days=settings.REMINDER_INTERVAL_DAYS)
     plan, by_member = Plan(), {}
@@ -85,10 +85,10 @@ def _body(reminder, sender, request):
 
 
 def send_reminders(plan, sender, request=None):
-    """Verschickt eine Mail pro Member und merkt an den Crates, dass erinnert wurde.
+    """Sends one mail per member and records on the crates that a reminder went out.
 
-    Gibt (verschickt, fehlgeschlagen) zurück, jeweils eine Liste von Remindern.
-    Eine Crate gilt als erinnert, sobald eine ihrer Mails angenommen wurde.
+    Returns (sent, failed), each a list of reminders.
+    A crate counts as reminded as soon as one of its mails was accepted.
     """
     sent, failed = [], []
     connection = get_connection()
@@ -102,12 +102,12 @@ def send_reminders(plan, sender, request=None):
         )
         try:
             message.send()
-        except Exception:  # ein Fehler bei einer Mail soll die übrigen nicht aufhalten
+        except Exception:  # an error with one mail should not hold up the others
             logger.exception('Erinnerung an %s konnte nicht verschickt werden', reminder.address)
             failed.append(reminder)
         else:
             sent.append(reminder)
     reminded = {crate.pk for reminder in sent for crate in reminder.crates}
-    # update() statt save(): „Geändert“ an der Crate soll sich dadurch nicht ändern
+    # update() instead of save(): the crate's "last changed" should not change because of this
     Crate.objects.filter(pk__in=reminded).update(attention_reminded_at=timezone.now())
     return sent, failed

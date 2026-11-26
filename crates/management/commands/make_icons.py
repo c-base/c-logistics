@@ -1,4 +1,4 @@
-"""Erzeugt die App-Icons für die Installation auf dem Telefon (PWA)."""
+"""Generates the app icons for installing on the phone (PWA)."""
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -10,9 +10,9 @@ FONT = APP_DIR / 'fonts' / 'Orbitron.ttf'
 BACKGROUND = '#060606'
 ACCENT = '#33b5e5'
 
-# Dateiname -> (Kantenlänge, Anteil der Fläche für das Motiv)
-# „maskable“: Android schneidet das Icon rund oder abgerundet zu, das Motiv
-# muss deshalb im inneren Bereich bleiben.
+# file name -> (edge length, share of the area used for the motif)
+# "maskable": Android crops the icon round or rounded, so the motif
+# has to stay within the inner area.
 ICONS = {
     'icon-192.png': (192, 0.80),
     'icon-512.png': (512, 0.80),
@@ -22,7 +22,7 @@ ICONS = {
 
 
 def placeholder(size):
-    """Vorläufiges Motiv ohne Logo: der Schriftzug „crate“ mit einem Rahmen wie die Eingabefelder."""
+    """Provisional motif without a logo: the lettering "crate" with a border like the input fields."""
     image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
     stroke = max(2, size // 28)
@@ -64,8 +64,8 @@ class Command(BaseCommand):
         for name, (size, share) in ICONS.items():
             inner = round(size * share)
             if logo:
-                # Durchsichtigen Rand abschneiden und auf die Zielgröße bringen –
-                # auch vergrößern, wenn das Logo kleiner ist.
+                # Crop the transparent border and scale to the target size –
+                # also upscale if the logo is smaller.
                 motif = logo.crop(logo.getbbox() or (0, 0, *logo.size))
                 scale = inner / max(motif.size)
                 motif = motif.resize(
