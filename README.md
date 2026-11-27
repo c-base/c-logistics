@@ -11,6 +11,17 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
 - NFC-Tag und QR-Code auf dem gedruckten Label zeigen beide auf dieselbe URL:
   `https://crates.c-base.org/<ID>` – die Crate-ID ist der letzte Teil der URL.
   Die frühere Form `/c/<ID>/` leitet dorthin um.
+- NFC-Tags beschreiben: Manager haben auf der Seite einer Crate unter „Label &
+  NFC-Tag“ den Knopf „NFC-Tag beschreiben“. Er schreibt die URL auf den Tag,
+  liest sie zur Kontrolle zurück und bietet erst danach „Tag sperren
+  (endgültig)“ an. Vor dem Sperren wird der Tag noch einmal gelesen: Es muss
+  derselbe Tag sein und genau die URL der Crate tragen. Sperren ist nicht
+  umkehrbar und nur möglich, wenn `PUBLIC_BASE_URL` gesetzt ist. Das Ganze
+  läuft im Browser über Web NFC und geht deshalb nur mit Chrome auf Android
+  über HTTPS (auch in der installierten App); überall sonst bleibt der Knopf
+  zum Kopieren der Adresse für eine NFC-App. Die Beschränkung auf Manager
+  betrifft nur die Knöpfe – einen Tag mit einer anderen App zu beschreiben,
+  kann die App niemandem verwehren.
 - Weil die ID direkt hinter dem Hostnamen steht, gehört jeder Pfad aus höchstens
   vier Hex-Zeichen einer Crate. Neue Seiten der App dürfen deshalb nicht z. B.
   `/add`, `/feed` oder `/cafe` heißen.

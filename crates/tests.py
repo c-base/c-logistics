@@ -520,6 +520,25 @@ class CrateTests(TestCase):
         response = self.client.get(self.crate.get_absolute_url())
         self.assertContains(response, f'id="copy-link" data-link="https://crates.c-base.org/{self.crate.code}"')
 
+    @override_settings(PUBLIC_BASE_URL='https://crates.c-base.org')
+    def test_only_managers_get_the_buttons_for_writing_and_locking_nfc_tags(self):
+        from django.contrib.staticfiles import finders
+
+        self.assertIsNotNone(finders.find('crates/nfc.js'))
+        page = self.client.get(self.crate.get_absolute_url())
+        for text in ('nfc-write', 'crates/nfc.js', 'NFC-Tag beschreiben'):
+            self.assertNotContains(page, text)
+        self.make_manager()
+        page = self.client.get(self.crate.get_absolute_url())
+        self.assertContains(page, f'id="nfc-write" data-url="https://crates.c-base.org/{self.crate.code}" data-lockable="1" hidden')
+        self.assertContains(page, 'crates/nfc.js')
+        # hidden until the script finds that the browser can write tags
+        self.assertContains(page, 'id="nfc-lock-button" hidden')
+
+    def test_tags_are_not_locked_onto_an_address_that_is_only_guessed(self):
+        self.make_manager()
+        self.assertContains(self.client.get(self.crate.get_absolute_url()), 'data-lockable="" hidden')
+
     def test_detail_offers_the_ql_print_file_of_the_list(self):
         response = self.client.get(self.crate.get_absolute_url())
         link = f'{reverse("crates:labels")}?c={self.crate.code}&amp;format=ql'

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ crate.name }}{% endblock %}
 {% block content %}
 {% if previous_crate or next_crate %}
@@ -167,6 +168,18 @@
       {% if not base_url_configured %}
       <p class="muted">⚠ <code>PUBLIC_BASE_URL</code> ist nicht gesetzt – die Adresse stammt aus dem aktuellen Aufruf. Vor dem Drucken die endgültige Adresse festlegen.</p>
       {% endif %}
+      {% if user.is_manager %}
+      {# Writing NFC tags: managers only, and only where the browser can do it (Chrome on Android); see nfc.js #}
+      <div class="nfc-write" id="nfc-write" data-url="{{ public_url }}" data-lockable="{% if base_url_configured %}1{% endif %}" hidden>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="nfc-write-button">NFC-Tag beschreiben</button>
+          <button type="button" class="btn btn-danger" id="nfc-lock-button" hidden>Tag sperren (endgültig)</button>
+          <button type="button" class="btn btn-secondary" id="nfc-cancel-button" hidden>Abbrechen</button>
+        </div>
+        <p class="nfc-status" id="nfc-status" role="status"></p>
+      </div>
+      <p class="muted" id="nfc-unsupported" hidden>NFC-Tags direkt beschreiben und sperren geht nur mit Chrome auf Android.</p>
+      {% endif %}
       <div class="actions">
         <a class="btn btn-secondary" href="{% url 'crates:label-pdf' crate.code %}?download=1" title="PDF mit {{ copies }} Seite{{ copies|pluralize:"n" }}">Label als PDF{% if copies > 1 %} ({{ copies }}×){% endif %}</a>
         <a class="btn btn-secondary" href="{% url 'crates:label' crate.code %}?download=1">Label als PNG</a>
@@ -214,5 +227,6 @@
     });
   })();
 </script>
+{% if user.is_manager %}<script src="{% static 'crates/nfc.js' %}"></script>{% endif %}
 <p class="muted mt-3">Zuletzt geändert: {{ crate.updated_at|date:"SHORT_DATETIME_FORMAT" }} · <a href="{% url 'crates:history' crate.code %}">Verlauf</a></p>
 {% endblock %}
