@@ -29,8 +29,22 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       HTTPS erreichbar.
 - [x] **`.env` auf dem Zielrechner**: `DJANGO_SECRET_KEY`,
       `DJANGO_ALLOWED_HOSTS`, OIDC-Daten.
+- [ ] **Mailversand einrichten**: SMTP-Zugang in die `.env` auf dem Server
+      (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`,
+      `DEFAULT_FROM_EMAIL` – der Absender `crates@c-base.org` ist nur geraten).
+      Ohne `EMAIL_HOST` ist „Verantwortliche erinnern“ gesperrt. Danach einen
+      Member in die Gruppe „Manager“ aufnehmen und eine Erinnerung testen.
+- [ ] **Alte Doppelkonten zusammenführen**: auf dem Server
+      `python manage.py merge_duplicate_members` ausführen, die angezeigten
+      Paare (`<name>-2` → `<name>`) prüfen und mit `--apply` zusammenführen.
 - [ ] **Datensicherung** einrichten: Volume `data` (SQLite-Datei und Fotos),
       bei Postgres zusätzlich die Datenbank.
+- [ ] **Cron-Job fürs Aufräumen** auf dem Server einrichten, z. B. monatlich:
+      `python manage.py deleterevisions crates --days 180` entfernt alte Stände
+      aus dem Verlauf, danach löscht `python manage.py purge_photo_files` die
+      Fotodateien, die keine Crate und kein Stand mehr zeigt (vorher einmal mit
+      `--dry-run` ansehen). Ohne den Job bleiben gelöschte Fotos für immer auf
+      der Platte. Die 180 Tage sind ein Vorschlag.
 - [ ] **Upload-Grenze am Reverse Proxy** anheben (nginx: `client_max_body_size`,
       Standard 1 MB) – Handyfotos haben 3–12 MB, die App nimmt bis 30 MB je Bild.
 - [x] **Auf echtem Android-Gerät testen**: Scan → Login → Crate, Formulare,
