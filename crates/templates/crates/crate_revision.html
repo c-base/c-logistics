@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ crate.code }} am {{ revision.date_created|date:"SHORT_DATETIME_FORMAT" }}{% endblock %}
+{% block content %}
+<h1><span class="code">{{ crate.code }}</span> am {{ revision.date_created|date:"SHORT_DATETIME_FORMAT" }}</h1>
+<p>{{ revision.comment|default:"geändert" }}{% if revision.user %} – von {{ revision.user }}{% endif %}</p>
+<div class="move-sides">
+  <div class="card transparent">
+    <div class="card-body">
+      <h2>Stand vom {{ revision.date_created|date:"SHORT_DATETIME_FORMAT" }}</h2>
+      {% include "crates/_contents.html" with side=recorded show_box=True %}
+    </div>
+  </div>
+  <div class="card transparent">
+    <div class="card-body">
+      <h2>Jetzt</h2>
+      {% include "crates/_contents.html" with side=current show_box=True %}
+    </div>
+  </div>
+</div>
+<form method="post" class="mt-3">
+  {% csrf_token %}
+  {% if is_latest %}
+  <p class="muted">Das ist der aktuelle Stand.</p>
+  {% else %}
+  <p class="muted">Wiederherstellen setzt nur <span class="code">{{ crate.code }}</span> auf den linken Stand zurück; andere Crates bleiben, wie sie sind. Der jetzige Stand bleibt im Verlauf.</p>
+  {% endif %}
+  <div class="actions">
+    {% if not is_latest %}<button class="btn btn-primary">Diesen Stand wiederherstellen</button>{% endif %}
+    <a class="btn btn-secondary" href="{% url 'crates:history' crate.code %}">Zurück zum Verlauf</a>
+  </div>
+</form>
+{% endblock %}

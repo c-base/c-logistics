@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Verlauf von {{ crate.code }}{% endblock %}
+{% block content %}
+<h1>Verlauf von <span class="code">{{ crate.code }}</span></h1>
+<p>{{ crate.name }} – jede Änderung mit dem Member, das sie gemacht hat. Ein älterer Stand lässt sich ansehen und wiederherstellen.</p>
+<div class="card transparent">
+  <div class="card-body">
+    {% if revisions %}
+    <div class="table-responsive">
+    <table class="table history mb-0">
+      <thead><tr><th>Wann</th><th>Wer</th><th>Was</th><th></th></tr></thead>
+      <tbody>
+      {% for revision in revisions %}
+      <tr>
+        <td class="when">{{ revision.date_created|date:"SHORT_DATETIME_FORMAT" }}</td>
+        <td>{{ revision.user|default:"–" }}</td>
+        <td>{{ revision.comment|default:"geändert" }}{% if forloop.first %} <span class="muted">(aktueller Stand)</span>{% endif %}</td>
+        <td class="text-end">{% if not forloop.first %}<a href="{% url 'crates:revision' crate.code revision.pk %}">ansehen</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted mb-0">Noch nichts aufgezeichnet. Der Verlauf beginnt mit der nächsten Änderung; der Stand davor wird dabei festgehalten.</p>
+    {% endif %}
+  </div>
+</div>
+<div class="actions mt-3"><a class="btn btn-secondary" href="{{ crate.get_absolute_url }}">Zurück zur Crate</a></div>
+{% endblock %}

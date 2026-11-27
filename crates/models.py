@@ -1,18 +1,15 @@
 import re
 import uuid
 
+import reversion
 from django.conf import settings
-from django.core.files.base import ContentFile, File
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, models, transaction
-from django.db.models.signals import post_delete
-from django.dispatch import receiver
 from django.urls import reverse
 
 CODE_DIGITS = 4
 # /dev/null, the bin: created by a migration, never a real crate.
 DEV_NULL_CODE = '0000'
-# What a crate is called once its contents have moved out.
-EMPTY_NAME = 'leer'
 MAX_NUMBER = 16 ** CODE_DIGITS - 1
 
 
@@ -172,72 +169,43 @@ class Crate(models.Model):
     def has_contents(self):
         return self.items.exists() or self.photos.exists()
 
-    def move_contents_to(self, target):
-        """Moves what makes up the contents into another crate and leaves this one empty.
+    # What makes up the contents and changes boxes on a move. ID, size, height
+    # and colour belong to the box itself and stay where they are.
+    CONTENT_FIELDS = ('name', 'description', 'location', 'needs_attention', 'attention_note', 'attention_reminded_at')
+
+    def swap_contents_with(self, other):
+        """Moves the contents into another crate and takes what that one held in return.
 
         Name, description, responsible members, location, tags, the attention flag
-        with its note, items and photos go along and replace what the target held.
-        ID, size, height and colour belong to the box itself and stay where they are.
-        Raises ValueError if the two crates cannot be used for a move.
+        with its note, items and photos change places. Nothing is lost, and doing
+        the same again undoes it. Raises ValueError if the two crates cannot be
+        used for a move.
         """
-        from members.models import Member
-
-        if target.pk == self.pk:
+        if other.pk == self.pk:
             raise ValueError('Quelle und Ziel sind dieselbe Crate.')
-        if DEV_NULL_CODE in (self.code, target.code):
+        if DEV_NULL_CODE in (self.code, other.code):
             raise ValueError(f'{DEV_NULL_CODE} ist /dev/null und nimmt an keinem Umzug teil.')
-
-        # The photo files live in a folder named after the crate, so they move too.
-        # Copy first, switch the database over, and only then remove the old files:
-        # whatever fails on the way, no photo is lost.
-        photos = list(self.photos.all())
-        copied, obsolete, renames = [], [], []
-        try:
-            for photo in photos:
-                names = {}
-                for attribute in ('image', 'thumbnail'):
-                    field = getattr(photo, attribute)
-                    filename = field.name.rsplit('/', 1)[-1]
-                    try:
-                        with field.storage.open(field.name, 'rb') as source:
-                            names[attribute] = field.storage.save(f'crates/{target.code}/{filename}', File(source))
-                    except FileNotFoundError:
-                        # the file is already missing; the entry moves as it is
-                        continue
-                    copied.append((field.storage, names[attribute]))
-                    obsolete.append((field.storage, field.name))
-                renames.append((photo, names))
-
-            with transaction.atomic():
-                replaced_photos = list(target.photos.all())
-                target.items.all().delete()
-                self.items.update(crate=target)
-                for photo, names in renames:
-                    photo.crate = target
-                    for attribute, name in names.items():
-                        getattr(photo, attribute).name = name
-                    photo.save()
-
-                for field in ('name', 'description', 'location', 'needs_attention', 'attention_note', 'attention_reminded_at'):
-                    setattr(target, field, getattr(self, field))
-                target.save()
-                target.responsible.set(self.responsible.all())
-                target.tags.set(self.tags.all())
-
-                self.name, self.description, self.needs_attention = EMPTY_NAME, '', False
-                self.save()
-                self.responsible.set([Member.unknown()])
-                self.tags.clear()
-
-                # last, because deleting a photo removes its files right away
-                for photo in replaced_photos:
-                    photo.delete()
-        except BaseException:
-            for storage, name in copied:
-                storage.delete(name)
-            raise
-        for storage, name in obsolete:
-            storage.delete(name)
+        with transaction.atomic():
+            held = {
+                crate.pk: (
+                    list(crate.items.values_list('pk', flat=True)), list(crate.photos.values_list('pk', flat=True)),
+                    list(crate.responsible.all()), list(crate.tags.all()),
+                )
+                for crate in (self, other)
+            }
+            for field in self.CONTENT_FIELDS:
+                mine, theirs = getattr(self, field), getattr(other, field)
+                setattr(self, field, theirs)
+                setattr(other, field, mine)
+            for crate, source in ((self, other), (other, self)):
+                items, photos, responsible, tags = held[source.pk]
+                crate.save()
+                # The photo files stay in the folder of the crate they were taken for:
+                # older states in the history refer to them by that path.
+                Item.objects.filter(pk__in=items).update(crate=crate)
+                Photo.objects.filter(pk__in=photos).update(crate=crate)
+                crate.responsible.set(responsible)
+                crate.tags.set(tags)
 
 
 class Item(models.Model):
@@ -294,9 +262,10 @@ class Photo(models.Model):
         return photo
 
 
-@receiver(post_delete, sender=Photo)
-def _delete_photo_files(sender, instance, **kwargs):
-    # Even when the crate is deleted, no files should be left behind.
-    for field in (instance.image, instance.thumbnail):
-        if field:
-            field.delete(save=False)
+# Deleting a photo only removes its entry. The files stay as long as an older
+# state in the history still shows them; "purge_photo_files" clears the rest.
+
+# The history records a crate together with its items and photos (see history.py).
+reversion.register(Crate, follow=('items', 'photos'))
+reversion.register(Item)
+reversion.register(Photo)

@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # history of the crates: who changed what, and older states to restore
+    'reversion',
     'members',
     'crates',
 ]

@@ -214,5 +214,5 @@
     });
   })();
 </script>
-<p class="muted mt-3">Zuletzt geändert: {{ crate.updated_at|date:"SHORT_DATETIME_FORMAT" }}</p>
+<p class="muted mt-3">Zuletzt geändert: {{ crate.updated_at|date:"SHORT_DATETIME_FORMAT" }} · <a href="{% url 'crates:history' crate.code %}">Verlauf</a></p>
 {% endblock %}

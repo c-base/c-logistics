@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.db.models import Count
+from reversion.admin import VersionAdmin
 
 from .models import Crate, Item, Location, Photo, Tag
 
@@ -10,7 +11,7 @@ class ItemInline(admin.TabularInline):
 
 
 @admin.register(Crate)
-class CrateAdmin(admin.ModelAdmin):
+class CrateAdmin(VersionAdmin):
     list_display = ['name', 'code', 'size', 'location', 'needs_attention', 'updated_at']
     list_filter = ['needs_attention', 'tags', 'size', 'location', 'responsible']
     search_fields = ['name', 'code', 'description', 'items__name']

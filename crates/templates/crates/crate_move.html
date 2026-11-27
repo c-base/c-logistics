@@ -6,8 +6,9 @@
 <p><span class="code">{{ crate.code }}</span> ist /dev/null – von hier zieht nichts um.</p>
 <div class="actions"><a class="btn btn-secondary" href="{{ crate.get_absolute_url }}">Zurück</a></div>
 {% else %}
-<p>Bezeichnung, Beschreibung, Verantwortliche, Lagerort, Tags, „Needs attention“, Inhalt und Fotos ziehen in die Ziel-Crate um und ersetzen, was dort bisher steht.
-  ID, Größe, Farbe und Label bleiben bei der jeweiligen Kiste. <span class="code">{{ crate.code }}</span> ist danach leer.</p>
+<p>Bezeichnung, Beschreibung, Verantwortliche, Lagerort, Tags, „Needs attention“, Inhalt und Fotos ziehen in die Ziel-Crate um.
+  Was dort bisher steht, kommt im Tausch nach <span class="code">{{ crate.code }}</span> – es geht nichts verloren.
+  ID, Größe, Farbe und Label bleiben bei der jeweiligen Kiste.</p>
 <form method="get" class="card transparent">
   <div class="card-body">
     <label class="form-label" for="move-to">Wohin? ID der Ziel-Crate</label>
@@ -28,30 +29,23 @@
 <div class="move-sides mt-3">
   <div class="card transparent">
     <div class="card-body">
-      <h2>Zieht um: aus <a class="code" href="{{ crate.get_absolute_url }}">{{ crate.code }}</a></h2>
-      {% include "crates/_move_side.html" with side=crate %}
+      <h2><a class="code" href="{{ crate.get_absolute_url }}">{{ crate.code }}</a> → <a class="code" href="{{ target.get_absolute_url }}">{{ target.code }}</a>: zieht um</h2>
+      {% include "crates/_contents.html" with side=moving %}
     </div>
   </div>
-  <div class="card transparent{% if target.has_contents %} loses{% endif %}">
+  <div class="card transparent">
     <div class="card-body">
-      <h2>Wird überschrieben: bisher in <a class="code" href="{{ target.get_absolute_url }}">{{ target.code }}</a></h2>
-      {% include "crates/_move_side.html" with side=target %}
+      <h2><a class="code" href="{{ target.get_absolute_url }}">{{ target.code }}</a> → <a class="code" href="{{ crate.get_absolute_url }}">{{ crate.code }}</a>: kommt im Tausch zurück</h2>
+      {% include "crates/_contents.html" with side=returning %}
     </div>
   </div>
 </div>
 <form method="post" class="mt-3">
   {% csrf_token %}
   <input type="hidden" name="to" value="{{ target.code }}">
-  <div class="move-warning" role="alert">
-    <strong>⚠ Der Umzug lässt sich nicht rückgängig machen.</strong>
-    {% if target.has_contents %}
-    Was bisher in <span class="code">{{ target.code }}</span> eingetragen ist, wird endgültig gelöscht – auch die Fotos.
-    {% else %}
-    <span class="code">{{ target.code }}</span> hat weder Positionen noch Fotos; verloren gehen dort nur die Angaben oben.
-    {% endif %}
-  </div>
+  <p class="muted">Rückgängig machen: denselben Umzug noch einmal ausführen. Der Stand davor steht außerdem im Verlauf beider Crates.</p>
   <div class="actions">
-    <button class="btn {% if target.has_contents %}btn-danger{% else %}btn-primary{% endif %}">Nach {{ target.code }} umziehen{% if target.has_contents %} und überschreiben{% endif %}</button>
+    <button class="btn btn-primary">{% if returning.has_contents %}Inhalt von {{ crate.code }} und {{ target.code }} tauschen{% else %}Nach {{ target.code }} umziehen{% endif %}</button>
     <a class="btn btn-secondary" href="{{ crate.get_absolute_url }}">Abbrechen</a>
   </div>
 </form>

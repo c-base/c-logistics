@@ -32,12 +32,28 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   ist. Sie wird gelöscht, sobald der Haken herausgenommen wird.
 - Inhalt umziehen: Auf der Seite einer Crate führt „Inhalt umziehen“ nach
   `/<ID>/move/`. Dort die ID der Ziel-Crate eingeben; die Seite zeigt dann
-  nebeneinander, was umzieht und was in der Ziel-Crate bisher steht und
-  überschrieben wird. Erst der Knopf darunter zieht um. Mit gehen Bezeichnung,
+  nebeneinander, was umzieht und was aus der Ziel-Crate im Tausch zurückkommt.
+  Erst der Knopf darunter zieht um. Die beiden Crates tauschen Bezeichnung,
   Beschreibung, Verantwortliche, Lagerort, Tags, „Needs attention“ samt
-  Bemerkung, Inhalt und Fotos. ID, Grundmaß, Höhe und Farbe bleiben bei der
-  jeweiligen Kiste. Die Ausgangs-Crate heißt danach „leer“ und gehört
-  „unbecannt“. `0000` nimmt an keinem Umzug teil.
+  Bemerkung, Inhalt und Fotos; es geht nichts verloren, und derselbe Umzug
+  noch einmal macht ihn rückgängig. ID, Grundmaß, Höhe und Farbe bleiben bei
+  der jeweiligen Kiste. `0000` nimmt an keinem Umzug teil.
+- Verlauf: Jede Änderung an einer Crate wird mit Zeitpunkt, Member und einer
+  kurzen Notiz aufgezeichnet (django-reversion) – Angaben, Positionen, Fotos,
+  Tags, Umzüge. Unten auf der Seite der Crate führt „Verlauf“ nach
+  `/<ID>/history/`. Jeder ältere Stand lässt sich neben dem jetzigen ansehen
+  und wiederherstellen. Wiederherstellen setzt nur diese eine Crate zurück und
+  ist selbst ein Eintrag im Verlauf, lässt sich also ebenfalls zurücknehmen.
+  Der Verlauf beginnt mit der ersten Änderung nach der Einführung; der Stand
+  davor wird dabei als „Ausgangsstand“ festgehalten. Änderungen im Admin
+  stehen ebenfalls im Verlauf, gelöschte Crates stellt der Admin wieder her.
+- Fotodateien bleiben nach dem Löschen eines Fotos liegen, solange ein Stand im
+  Verlauf sie noch zeigt. Aufräumen, z. B. monatlich per Cron:
+  `python manage.py deleterevisions crates --days 180` entfernt alte Stände,
+  `python manage.py purge_photo_files` danach die Dateien, die niemand mehr
+  zeigt (`--dry-run` listet sie nur auf). Muss ein Foto sofort verschwinden,
+  im Admin unter „Reversion“ die Stände löschen, die es enthalten, und dann
+  `purge_photo_files` ausführen.
 - Crates tragen Tags mit Bereich, geschrieben `bereich:wert`, z. B. `eva:40c3`
   für eine Veranstaltung oder `transport:1`, `transport:2` für die Fuhren
   dorthin. Tags sind eine feste Auswahl: Im Formular der Crate stehen die

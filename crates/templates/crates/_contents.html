@@ -1,0 +1,35 @@
+{# One crate as it is now or as the history recorded it (history.Contents), for showing two side by side. #}
+<dl class="row mb-0">
+  <dt class="col-sm-4">Bezeichnung</dt><dd class="col-sm-8">{{ side.name }}</dd>
+  <dt class="col-sm-4">Verantwortlich</dt><dd class="col-sm-8">{{ side.responsible|join:", "|default:"–" }}</dd>
+  <dt class="col-sm-4">Lagerort</dt><dd class="col-sm-8">{{ side.location|default:"–" }}</dd>
+  {% if show_box %}
+  <dt class="col-sm-4">Größe</dt><dd class="col-sm-8">{{ side.get_size_display }}{% if side.height_mm %}, {{ side.height_mm }} mm hoch{% endif %}</dd>
+  {% if side.color %}<dt class="col-sm-4">Farbe</dt><dd class="col-sm-8">{{ side.color }}</dd>{% endif %}
+  {% endif %}
+  {% if side.tags %}<dt class="col-sm-4">Tags</dt><dd class="col-sm-8 tags">{% for tag in side.tags %}<span class="tag"><span class="scope">{{ tag.scope }}:</span>{{ tag.value }}</span>{% endfor %}</dd>{% endif %}
+  {% if side.needs_attention %}<dt class="col-sm-4">Needs attention</dt><dd class="col-sm-8">{{ side.attention_note|linebreaksbr|default:"ja" }}</dd>{% endif %}
+</dl>
+{% if side.description %}<p class="mt-2 mb-0">{{ side.description|linebreaksbr }}</p>{% endif %}
+<h3>Inhalt</h3>
+{% if side.items %}
+<table class="table items mb-0">
+  <tbody>
+  {% for item in side.items %}
+  <tr><td class="num">{{ item.quantity }} ×</td><td>{{ item.name }}{% if item.note %}<div class="muted">{{ item.note }}</div>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted mb-0">Keine Positionen eingetragen.</p>
+{% endif %}
+<h3>Fotos</h3>
+{% if side.photos %}
+<div class="photos">
+  {% for photo in side.photos %}
+  <a href="{{ photo.url }}" target="_blank" rel="noopener"><img src="{{ photo.thumbnail_url }}" loading="lazy" alt="Foto vom Inhalt, {{ photo.created_at|date:"SHORT_DATE_FORMAT" }}"></a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted mb-0">Kein Foto.</p>
+{% endif %}

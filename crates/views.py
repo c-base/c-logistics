@@ -15,6 +15,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import generic
 
 from .forms import CrateForm, ItemForm
+from .history import Contents, recording, restore, revisions_of, snapshot
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
 from members.models import Member
 
@@ -275,12 +276,14 @@ class BulkTagView(LoginRequiredMixin, generic.View):
         shown = ', '.join(str(tag) for tag in tags)
         count = f'{len(crates)} Crate{"s" if len(crates) != 1 else ""}'
         if request.POST.get('action') == 'remove':
-            for crate in crates:
-                crate.tags.remove(*tags)
+            with recording(request.user, f'Tags entfernt: {shown}', *crates):
+                for crate in crates:
+                    crate.tags.remove(*tags)
             messages.success(request, f'{shown} von {count} entfernt.')
         else:
-            for crate in crates:
-                crate.tags.add(*tags)
+            with recording(request.user, f'Tags gesetzt: {shown}', *crates):
+                for crate in crates:
+                    crate.tags.add(*tags)
             messages.success(request, f'{shown} an {count} gesetzt.')
         return redirect(target)
 
@@ -569,20 +572,35 @@ class CrateCreateView(ManagerRequiredMixin, CrateFormMixin, generic.CreateView):
     def get_initial(self):
         return {'responsible': [self.request.user.pk]}
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        snapshot(self.request.user, 'Crate angelegt', self.object)
+        return response
+
 
 class CrateUpdateView(LoginRequiredMixin, CrateLookupMixin, CrateFormMixin, generic.UpdateView):
-    pass
+    def form_valid(self, form):
+        if not form.has_changed():
+            return redirect(self.object)
+        with recording(self.request.user, 'Angaben bearbeitet', self.object):
+            return super().form_valid(form)
 
 
 class CrateDeleteView(LoginRequiredMixin, CrateLookupMixin, generic.DeleteView):
     success_url = reverse_lazy('crates:list')
 
+    def form_valid(self, form):
+        # the last state stays in the history; the admin can recover the crate from it
+        snapshot(self.request.user, 'Crate gelöscht', self.object)
+        return super().form_valid(form)
+
 
 class CrateMoveView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
     """Moves the contents of a crate into another one: /<ID>/move/?to=<ID>
 
-    GET shows both crates side by side – what moves, and what the target holds
-    so far and loses. Only the POST from that preview moves anything.
+    The two crates swap their contents, so nothing is lost. GET shows both side
+    by side – what moves, and what comes back from the target. Only the POST
+    from that preview moves anything.
     """
 
     template_name = 'crates/crate_move.html'
@@ -607,22 +625,94 @@ class CrateMoveView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
         entered = self.request.POST.get('to') or self.request.GET.get('to', '')
         context['entered'] = entered.strip()
         context['movable'] = self.object.code != DEV_NULL_CODE
-        context['target'], context['target_error'] = self.find_target(entered)
+        target, context['target_error'] = self.find_target(entered)
+        context['target'] = target
+        if target:
+            context['moving'], context['returning'] = Contents.of(self.object), Contents.of(target)
         context['choices'] = Crate.objects.exclude(code__in=[self.object.code, DEV_NULL_CODE]).only('code', 'name')
         return context
 
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
+        crate = self.object = self.get_object()
         target, _ = self.find_target(request.POST.get('to', ''))
-        if target is None:
+        if target is None or crate.code == DEV_NULL_CODE:
             return self.render_to_response(self.get_context_data())
         try:
-            self.object.move_contents_to(target)
+            with recording(request.user, f'Inhalt getauscht: {crate.code} ⇄ {target.code}', crate, target):
+                crate.swap_contents_with(target)
         except ValueError as error:
             messages.error(request, str(error))
             return self.render_to_response(self.get_context_data())
-        messages.success(request, f'Der Inhalt von {self.object.code} ist nach {target.code} umgezogen. {self.object.code} ist jetzt leer.')
+        messages.success(
+            request,
+            f'Der Inhalt von {crate.code} ist nach {target.code} umgezogen; was dort stand, ist jetzt in {crate.code}.',
+        )
         return redirect(target)
+
+
+class CrateHistoryView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
+    """Who changed the crate when: /<ID>/history/"""
+
+    template_name = 'crates/crate_history.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['revisions'] = revisions_of(self.object)
+        return context
+
+
+class RevisionLookupMixin(CrateLookupMixin):
+    """Finds the crate and one of its recorded states; a revision of another crate is 404."""
+
+    def get_recorded(self):
+        crate = self.get_object()
+        revision = get_object_or_404(revisions_of(crate), pk=self.kwargs['revision'])
+        contents = Contents.from_revision(crate, revision)
+        if contents is None:
+            raise Http404('Dieser Stand gehört nicht zu der Crate.')
+        return crate, contents
+
+
+class CrateRevisionView(LoginRequiredMixin, RevisionLookupMixin, generic.DetailView):
+    """An older state next to the present one, and the button that restores it: /<ID>/history/<revision>/"""
+
+    template_name = 'crates/crate_revision.html'
+
+    def get(self, request, *args, **kwargs):
+        self.object, recorded = self.get_recorded()
+        latest = revisions_of(self.object).first()
+        return self.render_to_response(self.get_context_data(
+            revision=recorded.revision, recorded=recorded, current=Contents.of(self.object),
+            is_latest=latest.pk == recorded.revision.pk,
+        ))
+
+    def post(self, request, *args, **kwargs):
+        crate, recorded = self.get_recorded()
+        restore(crate, recorded, request.user)
+        when = date_format(timezone.localtime(recorded.revision.date_created), 'SHORT_DATETIME_FORMAT')
+        messages.success(request, f'{crate.code} ist wieder auf dem Stand vom {when}. Der Stand davor steht im Verlauf.')
+        return redirect(crate)
+
+
+class RevisionPhotoView(LoginRequiredMixin, RevisionLookupMixin, generic.View):
+    """Serves a photo as a recorded state shows it – even if it has been deleted from the crate since."""
+
+    def get_queryset(self):
+        return Crate.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        crate, recorded = self.get_recorded()
+        address = request.path
+        photo = next((photo for photo in recorded.photos if address in (photo.url, photo.thumbnail_url)), None)
+        if photo is None:
+            raise Http404('Dieses Foto gehört nicht zu dem Stand.')
+        name = photo.thumbnail if kwargs['variant'] == 'thumbnail' else photo.image
+        try:
+            response = FileResponse(Photo._meta.get_field('image').storage.open(name, 'rb'), content_type='image/jpeg')
+        except FileNotFoundError:
+            raise Http404('Die Bilddatei fehlt.')
+        response['Cache-Control'] = 'private, max-age=86400'
+        return response
 
 
 class ItemCreateView(LoginRequiredMixin, generic.CreateView):
@@ -638,7 +728,8 @@ class ItemCreateView(LoginRequiredMixin, generic.CreateView):
 
     def form_valid(self, form):
         form.instance.crate = self.crate
-        form.save()
+        with recording(self.request.user, f'Position hinzugefügt: {form.instance}', self.crate):
+            form.save()
         return redirect(self.crate)
 
     def get_context_data(self, **kwargs):
@@ -650,6 +741,12 @@ class ItemCreateView(LoginRequiredMixin, generic.CreateView):
 class ItemUpdateView(LoginRequiredMixin, generic.UpdateView):
     model = Item
     form_class = ItemForm
+
+    def form_valid(self, form):
+        if not form.has_changed():
+            return redirect(self.get_success_url())
+        with recording(self.request.user, f'Position geändert: {form.instance}', self.object.crate):
+            return super().form_valid(form)
 
     def get_success_url(self):
         return self.object.crate.get_absolute_url()
@@ -664,6 +761,10 @@ class ItemDeleteView(LoginRequiredMixin, generic.DeleteView):
     model = Item
     http_method_names = ['post']
 
+    def form_valid(self, form):
+        with recording(self.request.user, f'Position entfernt: {self.object}', self.object.crate):
+            return super().form_valid(form)
+
     def get_success_url(self):
         return self.object.crate.get_absolute_url()
 
@@ -676,11 +777,16 @@ class PhotoUploadView(LoginRequiredMixin, generic.View):
         uploads = request.FILES.getlist('images')
         if not uploads:
             messages.error(request, 'Es wurde kein Bild ausgewählt.')
-        for upload in uploads:
-            try:
-                Photo.create_from_upload(crate, upload, request.user)
-            except PhotoError as error:
-                messages.error(request, str(error))
+        added = 0
+        with recording(request.user, 'Foto hinzugefügt', crate) as change:
+            for upload in uploads:
+                try:
+                    Photo.create_from_upload(crate, upload, request.user)
+                    added += 1
+                except PhotoError as error:
+                    messages.error(request, str(error))
+            if not added:
+                change.nothing()
         return redirect(f'{crate.get_absolute_url()}#fotos')
 
 
@@ -716,6 +822,10 @@ class PhotoDeleteView(LoginRequiredMixin, PhotoLookupMixin, generic.DeleteView):
 
     def get_object(self, queryset=None):
         return self.get_photo()
+
+    def form_valid(self, form):
+        with recording(self.request.user, 'Foto gelöscht', self.object.crate):
+            return super().form_valid(form)
 
     def get_success_url(self):
         return f'{self.object.crate.get_absolute_url()}#fotos'
