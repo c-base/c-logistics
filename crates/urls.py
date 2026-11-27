@@ -42,6 +42,7 @@ urlpatterns = [
     path('<hex:code>/label.pdf', views.CrateLabelView.as_view(), {'extension': 'pdf'}, name='label-pdf'),
     path('<hex:code>/card/', views.CrateCardView.as_view(), name='card'),
     path('<hex:code>/edit/', views.CrateUpdateView.as_view(), name='update'),
+    path('<hex:code>/move/', views.CrateMoveView.as_view(), name='move'),
     path('<hex:code>/delete/', views.CrateDeleteView.as_view(), name='delete'),
     path('<hex:code>/items/', views.ItemCreateView.as_view(), name='item-create'),
     path('<hex:code>/pics/', views.PhotoUploadView.as_view(), name='photo-upload'),

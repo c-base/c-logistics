@@ -767,6 +767,83 @@ class PhotoTests(TestCase):
         self.assertContains(response, f'action="{reverse("crates:print")}"')
         self.assertContains(response, '<option value="cards-a6">')
 
+    def test_moving_contents_takes_everything_along_and_replaces_what_the_target_held(self):
+        bob = get_user_model().objects.create_user('bob', password='pw')
+        tag, old_tag = Tag.objects.create(scope='eva', value='40c3'), Tag.objects.create(scope='transport', value='1')
+        self.crate.description, self.crate.color = 'Alles mit Stecker', 'blau'
+        self.crate.needs_attention, self.crate.attention_note = True, 'Deckel fehlt'
+        self.crate.save()
+        self.crate.responsible.set([self.member, bob])
+        self.crate.tags.add(tag)
+        Item.objects.create(crate=self.crate, name='HDMI-Kabel', quantity=4)
+        self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
+        photo = self.crate.photos.get()
+        target = Crate.objects.create(name='Altlast', description='weg damit', color='rot', size='300x200')
+        target.responsible.add(bob)
+        target.tags.add(old_tag)
+        Item.objects.create(crate=target, name='Staub', quantity=1)
+        self.client.post(reverse('crates:photo-upload', args=[target.code]), {'images': photo_upload(size=(200, 100))})
+        self.assertEqual(len(self.files()), 4)
+        url = reverse('crates:move', args=[self.crate.code])
+
+        # the preview shows both sides and changes nothing
+        preview = self.client.get(url, {'to': target.code.lower()})
+        for text in ('HDMI-Kabel', 'Staub', 'Altlast', 'weg damit', 'und überschreiben', 'nicht rückgängig',
+                     reverse('crates:photo-thumbnail', args=[target.code, target.photos.get().pk])):
+            self.assertContains(preview, text)
+        self.assertEqual(target.items.get().name, 'Staub')
+
+        response = self.client.post(url, {'to': target.code})
+        self.assertRedirects(response, target.get_absolute_url(), fetch_redirect_response=False)
+        target.refresh_from_db()
+        self.assertEqual((target.name, target.description), ('Kabelkiste', 'Alles mit Stecker'))
+        self.assertEqual((target.needs_attention, target.attention_note), (True, 'Deckel fehlt'))
+        self.assertCountEqual(target.responsible.all(), [self.member, bob])
+        self.assertEqual(list(target.tags.all()), [tag])
+        self.assertEqual([str(item) for item in target.items.all()], ['4 × HDMI-Kabel'])
+        # the box itself keeps what belongs to it
+        self.assertEqual((target.color, target.size), ('rot', '300x200'))
+        # the photo is the same entry, its files now lie in the folder of the target
+        self.assertEqual(list(target.photos.all()), [photo])
+        photo.refresh_from_db()
+        self.assertEqual(photo.uploaded_by, self.member)
+        self.assertTrue(photo.image.name.startswith(f'crates/{target.code}/'))
+        self.assertEqual(sorted(self.files()), sorted(Path(field.path) for field in (photo.image, photo.thumbnail)))
+        self.assertEqual(self.client.get(reverse('crates:photo', args=[target.code, photo.pk])).status_code, 200)
+
+        self.crate.refresh_from_db()
+        self.assertEqual((self.crate.name, self.crate.description, self.crate.color), ('leer', '', 'blau'))
+        self.assertFalse(self.crate.needs_attention)
+        self.assertEqual([member.username for member in self.crate.responsible.all()], ['unbecannt'])
+        self.assertFalse(self.crate.has_contents or self.crate.tags.exists())
+
+    def test_moving_needs_another_existing_crate_that_is_not_dev_null(self):
+        Item.objects.create(crate=self.crate, name='HDMI-Kabel', quantity=4)
+        url = reverse('crates:move', args=[self.crate.code])
+        self.assertContains(self.client.get(self.crate.get_absolute_url()), f'href="{url}"')
+        self.assertNotContains(self.client.get('/0000'), reverse('crates:move', args=['0000']))
+        for to, message in ((self.crate.code, 'dieselbe Crate'), ('0FFF', 'gibt es nicht'), ('0000', '/dev/null'), ('xyz', 'keine Crate-ID')):
+            self.assertContains(self.client.get(url, {'to': to}), message)
+            self.assertContains(self.client.post(url, {'to': to}), message)
+        self.assertEqual(self.client.post(reverse('crates:move', args=['0000']), {'to': self.crate.code}).status_code, 200)
+        self.crate.refresh_from_db()
+        self.assertEqual((self.crate.name, self.crate.items.count()), ('Kabelkiste', 1))
+        self.assertEqual(Crate.objects.get(code='0000').name, '/dev/null')
+        self.client.logout()
+        self.assertEqual(self.client.post(url, {'to': '0000'}).status_code, 302)
+
+    def test_failed_move_leaves_both_crates_and_all_files_as_they_were(self):
+        self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
+        target = Crate.objects.create(name='Ziel')
+        self.client.post(reverse('crates:photo-upload', args=[target.code]), {'images': photo_upload(size=(200, 100))})
+        before = sorted(self.files())
+        with mock.patch.object(Crate, 'save', side_effect=RuntimeError('kaputt')):
+            with self.assertRaises(RuntimeError):
+                self.crate.move_contents_to(target)
+        self.assertEqual(sorted(self.files()), before)
+        self.assertEqual((self.crate.photos.count(), target.photos.count()), (1, 1))
+        self.assertEqual(Crate.objects.get(pk=target.pk).name, 'Ziel')
+
     def test_photo_address_and_file_name_carry_the_crate_id(self):
         self.client.post(self.upload_url, {'images': photo_upload(size=(200, 100))})
         photo = self.crate.photos.get()

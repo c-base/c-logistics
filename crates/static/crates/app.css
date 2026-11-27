@@ -168,6 +168,18 @@ p.attention-note { margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px sol
 .photo-upload label.btn { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .photo-upload label.btn:focus-within { outline: 2px solid var(--cl-bright); outline-offset: 2px; }
 
+/* Moving contents: source and target side by side, one below the other on the phone */
+.move-sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; align-items: start; }
+.move-sides h2 { margin-top: 0; font-size: 1.15rem; }
+.move-sides h3 { font-size: 1rem; margin: 1rem 0 0.25rem; color: var(--cl-accent); }
+.move-sides .photos { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); margin-bottom: 0; }
+.move-sides .items td.num { width: 1%; padding-left: 0; }
+.move-sides .card.loses { border-color: var(--cl-attention); }
+.move-warning { padding: 0.75rem 1rem; margin-bottom: 1rem; border: 2px solid var(--cl-attention); border-left-width: 0.5rem; background: rgba(0, 0, 0, 0.6); color: var(--cl-bright); }
+.move-warning strong { display: block; color: var(--cl-attention); font-size: 1.15rem; }
+.move-target { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.move-target input { flex: 0 1 12rem; min-width: 0; text-transform: uppercase; }
+
 .login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 70px); }
 .login-box { width: 100%; max-width: 360px; }
 

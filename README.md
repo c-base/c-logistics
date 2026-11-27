@@ -30,6 +30,14 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   Crates sind in Liste und Detailansicht gekennzeichnet; die Liste lässt sich
   auf sie einschränken. Zum Haken gehört eine Bemerkung, was genau das Problem
   ist. Sie wird gelöscht, sobald der Haken herausgenommen wird.
+- Inhalt umziehen: Auf der Seite einer Crate führt „Inhalt umziehen“ nach
+  `/<ID>/move/`. Dort die ID der Ziel-Crate eingeben; die Seite zeigt dann
+  nebeneinander, was umzieht und was in der Ziel-Crate bisher steht und
+  überschrieben wird. Erst der Knopf darunter zieht um. Mit gehen Bezeichnung,
+  Beschreibung, Verantwortliche, Lagerort, Tags, „Needs attention“ samt
+  Bemerkung, Inhalt und Fotos. ID, Grundmaß, Höhe und Farbe bleiben bei der
+  jeweiligen Kiste. Die Ausgangs-Crate heißt danach „leer“ und gehört
+  „unbecannt“. `0000` nimmt an keinem Umzug teil.
 - Crates tragen Tags mit Bereich, geschrieben `bereich:wert`, z. B. `eva:40c3`
   für eine Veranstaltung oder `transport:1`, `transport:2` für die Fuhren
   dorthin. Tags sind eine feste Auswahl: Im Formular der Crate stehen die

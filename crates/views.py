@@ -18,7 +18,7 @@ from .forms import CrateForm, ItemForm
 from .labels import FONTS, label_png, labels_pdf, labels_ql_raster, public_url
 from members.models import Member
 
-from .models import Crate, Item, Photo, Tag, normalize_code
+from .models import DEV_NULL_CODE, Crate, Item, Photo, Tag, normalize_code
 from .photos import PhotoError
 from .reminders import make_plan, send_reminders
 
@@ -576,6 +576,53 @@ class CrateUpdateView(LoginRequiredMixin, CrateLookupMixin, CrateFormMixin, gene
 
 class CrateDeleteView(LoginRequiredMixin, CrateLookupMixin, generic.DeleteView):
     success_url = reverse_lazy('crates:list')
+
+
+class CrateMoveView(LoginRequiredMixin, CrateLookupMixin, generic.DetailView):
+    """Moves the contents of a crate into another one: /<ID>/move/?to=<ID>
+
+    GET shows both crates side by side – what moves, and what the target holds
+    so far and loses. Only the POST from that preview moves anything.
+    """
+
+    template_name = 'crates/crate_move.html'
+
+    def find_target(self, value):
+        """The target crate for the entered ID and, if it cannot be used, the reason why."""
+        value = value.strip()
+        if not value:
+            return None, ''
+        if not re.fullmatch(r'[0-9A-Fa-f]{1,4}', value):
+            return None, f'„{value}“ ist keine Crate-ID.'
+        code = normalize_code(value)
+        if code == self.object.code:
+            return None, 'Das ist dieselbe Crate.'
+        if code == DEV_NULL_CODE:
+            return None, f'{DEV_NULL_CODE} ist /dev/null – dorthin zieht nichts um.'
+        target = Crate.objects.filter(code=code).first()
+        return target, '' if target else f'Die Crate {code} gibt es nicht.'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        entered = self.request.POST.get('to') or self.request.GET.get('to', '')
+        context['entered'] = entered.strip()
+        context['movable'] = self.object.code != DEV_NULL_CODE
+        context['target'], context['target_error'] = self.find_target(entered)
+        context['choices'] = Crate.objects.exclude(code__in=[self.object.code, DEV_NULL_CODE]).only('code', 'name')
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        target, _ = self.find_target(request.POST.get('to', ''))
+        if target is None:
+            return self.render_to_response(self.get_context_data())
+        try:
+            self.object.move_contents_to(target)
+        except ValueError as error:
+            messages.error(request, str(error))
+            return self.render_to_response(self.get_context_data())
+        messages.success(request, f'Der Inhalt von {self.object.code} ist nach {target.code} umgezogen. {self.object.code} ist jetzt leer.')
+        return redirect(target)
 
 
 class ItemCreateView(LoginRequiredMixin, generic.CreateView):
