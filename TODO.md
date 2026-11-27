@@ -39,12 +39,13 @@ Priorisiert: oben steht, was den Betrieb blockiert. Erledigtes abhaken oder lös
       Paare (`<name>-2` → `<name>`) prüfen und mit `--apply` zusammenführen.
 - [ ] **Datensicherung** einrichten: Volume `data` (SQLite-Datei und Fotos),
       bei Postgres zusätzlich die Datenbank.
-- [ ] **Cron-Job fürs Aufräumen** auf dem Server einrichten, z. B. monatlich:
-      `python manage.py deleterevisions crates --days 180` entfernt alte Stände
-      aus dem Verlauf, danach löscht `python manage.py purge_photo_files` die
-      Fotodateien, die keine Crate und kein Stand mehr zeigt (vorher einmal mit
-      `--dry-run` ansehen). Ohne den Job bleiben gelöschte Fotos für immer auf
-      der Platte. Die 180 Tage sind ein Vorschlag.
+- [ ] **Cron-Job fürs Aufräumen** auf dem Server einrichten: Crontab-Eintrag
+      aus der README („Betrieb im Container“, Punkt „Aufräumen“) übernehmen,
+      Pfad und Logdatei anpassen. Er entfernt monatlich Stände aus dem Verlauf,
+      die älter als 180 Tage sind (ein Vorschlag), und danach die Fotodateien,
+      die keine Crate und kein Stand mehr zeigt. Vorher einmal
+      `docker compose exec app python manage.py purge_photo_files --dry-run`
+      ansehen. Ohne den Job bleiben gelöschte Fotos für immer auf der Platte.
 - [ ] **Upload-Grenze am Reverse Proxy** anheben (nginx: `client_max_body_size`,
       Standard 1 MB) – Handyfotos haben 3–12 MB, die App nimmt bis 30 MB je Bild.
 - [x] **Auf echtem Android-Gerät testen**: Scan → Login → Crate, Formulare,

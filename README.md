@@ -48,10 +48,12 @@ Django-App zum Verwalten von c-base cargo crates mit NFC-Tags und gedruckten Lab
   davor wird dabei als „Ausgangsstand“ festgehalten. Änderungen im Admin
   stehen ebenfalls im Verlauf, gelöschte Crates stellt der Admin wieder her.
 - Fotodateien bleiben nach dem Löschen eines Fotos liegen, solange ein Stand im
-  Verlauf sie noch zeigt. Aufräumen, z. B. monatlich per Cron:
+  Verlauf sie noch zeigt. Aufräumen:
   `python manage.py deleterevisions crates --days 180` entfernt alte Stände,
   `python manage.py purge_photo_files` danach die Dateien, die niemand mehr
-  zeigt (`--dry-run` listet sie nur auf). Muss ein Foto sofort verschwinden,
+  zeigt (`--dry-run` listet sie nur auf; Dateien, die jünger als eine Stunde
+  sind, bleiben liegen, damit ein laufender Upload nichts verliert); als Cron-Job siehe „Betrieb im
+  Container“. Muss ein Foto sofort verschwinden,
   im Admin unter „Reversion“ die Stände löschen, die es enthalten, und dann
   `purge_photo_files` ausführen.
 - Crates tragen Tags mit Bereich, geschrieben `bereich:wert`, z. B. `eva:40c3`
@@ -334,6 +336,21 @@ docker compose exec app python manage.py createsuperuser
 - **Sicherung:** das Volume `data` sichern (bei Postgres zusätzlich `pgdata`
   bzw. ein `pg_dump`). Für eine Kopie der SQLite-Datei im laufenden Betrieb:
   `docker compose exec app python -c "import sqlite3; sqlite3.connect('/data/db.sqlite3').backup(sqlite3.connect('/data/backup.sqlite3'))"`
+- **Aufräumen:** Alte Stände im Verlauf und Fotodateien, die niemand mehr
+  zeigt, räumt ein Cron-Job des Hosts weg, der die Kommandos im laufenden
+  Container ausführt. In die Crontab des Benutzers, der auch
+  `docker compose up` ausführt (Pfad anpassen):
+
+  ```cron
+  # am 1. jedes Monats um 04:15
+  15 4 1 * * cd /srv/c-logistics && docker compose exec -T app sh -c 'python manage.py deleterevisions crates --days 180 && python manage.py purge_photo_files' >> /var/log/c-logistics-cleanup.log 2>&1
+  ```
+
+  `-T`, weil Cron kein Terminal hat. Die Dateien werden nur gelöscht, wenn das
+  Entfernen der alten Stände geklappt hat. Läuft der Container zu dem
+  Zeitpunkt nicht, fällt der Lauf aus; der nächste räumt entsprechend mehr
+  auf. Vor dem ersten Lauf ansehen, was gelöscht würde:
+  `docker compose exec app python manage.py purge_photo_files --dry-run`
 - **Upload-Grenze:** Der Proxy muss Uploads bis 30 MB durchlassen (nginx:
   `client_max_body_size 30m;`), sonst scheitern Handyfotos.
 - **Ohne Proxy ausprobieren:** `DJANGO_SECURE_COOKIES=0` und `localhost` in

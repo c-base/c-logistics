@@ -7,6 +7,8 @@ from django.utils import timezone
 from unittest import mock
 import csv
 import io
+import os
+import time
 import tempfile
 from pathlib import Path
 
@@ -696,6 +698,12 @@ class PhotoTests(TestCase):
         self.assertEqual(self.client.post(self.upload_url, {'images': photo_upload()}).status_code, 302)
         self.assertEqual(self.crate.photos.count(), 1)
 
+    def age_files(self):
+        """Makes the stored files two hours old; clearing up leaves younger ones alone."""
+        two_hours_ago = time.time() - 2 * 3600
+        for path in self.files():
+            os.utime(path, (two_hours_ago, two_hours_ago))
+
     def test_deleted_photo_keeps_its_files_until_no_recorded_state_shows_it(self):
         self.client.post(self.upload_url, {'images': photo_upload()})
         self.assertEqual(len(self.files()), 2)
@@ -703,19 +711,29 @@ class PhotoTests(TestCase):
         self.assertRedirects(response, f'/{self.crate.code}#fotos', fetch_redirect_response=False)
         self.assertFalse(Photo.objects.exists())
         # the history still shows the photo, so clearing up leaves the files alone
+        self.age_files()
         call_command('purge_photo_files', stdout=io.StringIO())
         self.assertEqual(len(self.files()), 2)
         Revision.objects.all().delete()
+        self.client.post(self.upload_url, {'images': photo_upload()})
+        Photo.objects.all().delete()
+        Revision.objects.all().delete()
+        # files as young as these could belong to an upload that is still running
         output = io.StringIO()
         call_command('purge_photo_files', '--dry-run', stdout=output)
         self.assertIn('2 Dateien würden gelöscht', output.getvalue())
+        self.assertEqual(len(self.files()), 4)
+        # only the old pair goes; the young one may be kept by an upload in progress
+        call_command('purge_photo_files', stdout=io.StringIO())
         self.assertEqual(len(self.files()), 2)
+        self.age_files()
         call_command('purge_photo_files', stdout=io.StringIO())
         self.assertEqual(self.files(), [])
 
     def test_clearing_up_keeps_the_files_of_photos_that_are_on_a_crate(self):
         self.client.post(self.upload_url, {'images': photo_upload()})
         Revision.objects.all().delete()
+        self.age_files()
         call_command('purge_photo_files', stdout=io.StringIO())
         self.assertEqual(len(self.files()), 2)
 

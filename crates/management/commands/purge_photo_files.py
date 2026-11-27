@@ -1,13 +1,22 @@
+from datetime import timedelta
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from reversion.models import Version
 
 from crates.models import Photo
 
 
+# An upload stores the files a moment before its entry exists in the database.
+# Files this young are left alone, so that a running upload never loses them.
+MIN_AGE = timedelta(hours=1)
+
+
 class Command(BaseCommand):
     help = (
-        'Löscht Fotodateien, die weder eine Crate noch ein Stand im Verlauf mehr zeigt. '
+        'Löscht Fotodateien, die weder eine Crate noch ein Stand im Verlauf mehr zeigt '
+        'und die älter als eine Stunde sind. '
         'Vorher alte Stände entfernen, z. B. mit "deleterevisions crates --days 180".'
     )
 
@@ -32,7 +41,16 @@ class Command(BaseCommand):
             for sub in folders:
                 yield from files(f'{folder}/{sub}')
 
-        unused = [name for name in files('crates') if name not in used]
+        def old_enough(name):
+            try:
+                modified = storage.get_modified_time(name)
+            except FileNotFoundError:
+                return False
+            if timezone.is_naive(modified):
+                modified = timezone.make_aware(modified)
+            return timezone.now() - modified >= MIN_AGE
+
+        unused = [name for name in files('crates') if name not in used and old_enough(name)]
         for name in unused:
             if dry_run:
                 self.stdout.write(name)
